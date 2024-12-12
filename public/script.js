@@ -87,6 +87,9 @@ async function fetchOptionChain(symbol) {
     return data.option_chain;
 }
 
+let initialCallVolume=0, initialCallOI=0, initialCallAskQty=0, initialCallBidQty=0;
+let initialPutVolume=0, initialPutOI=0, initialPutAskQty=0, initialPutBidQty=0;
+
 function updateOptionChainData(optionChain, underlyingSpotPrice) {
     optionChainTableBody.innerHTML = '';
 
@@ -145,6 +148,17 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         optionChainTableBody.appendChild(row);
     });
 
+    if (!initialCallVolume) {
+        initialCallVolume = totalCallVolume;
+        initialCallOI = totalCallOI;
+        initialCallAskQty = totalCallAskQty;
+        initialCallBidQty = totalCallBidQty;
+        initialPutVolume = totalPutVolume;
+        initialPutOI = totalPutOI;
+        initialPutAskQty = totalPutAskQty;
+        initialPutBidQty = totalPutBidQty;
+    }
+
     // Display combined totals for ATM and OTM
     const totalRow = document.createElement('tr');
     totalRow.innerHTML = `
@@ -165,6 +179,26 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         <td>${totalPutVolume}</td>
     `;
     optionChainTableBody.appendChild(totalRow);
+
+    const diffRow = document.createElement('tr');
+    diffRow.innerHTML = `
+        <td>${totalCallVolume - initialCallVolume}</td>
+        <td>${totalCallOI - initialCallOI}</td>
+        <td></td>
+        <td>${totalCallBidQty - initialCallBidQty}</td>
+        <td></td>
+        <td></td>
+        <td>${totalCallAskQty - initialCallAskQty}</td>
+        <td></td>
+        <td>${totalPutAskQty - initialPutAskQty}</td>
+        <td></td>
+        <td></td>
+        <td>${totalPutBidQty - initialPutBidQty}</td>
+        <td></td>
+        <td>${totalPutOI - initialPutOI}</td>
+        <td>${totalPutVolume - initialPutVolume}</td>
+`;
+optionChainTableBody.appendChild(diffRow)
 }
 fetchOptionChain(symbol)
     .then(optionChain => updateOptionChainData(optionChain, underlyingSpotPrice))
