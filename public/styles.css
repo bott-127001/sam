@@ -1,0 +1,72 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 10px;
+}
+
+.container {
+    max-width: 600px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    text-align: center;
+}
+
+button {
+    margin: 2.5px 0;
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+input[type="text"] {
+    width: 45%;
+    padding: 5px;
+    margin: 2.5px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+/* New styles for displaying option chain data */
+.data-display {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    overflow-y: auto; /* Enable scrolling if content exceeds height */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse; 
+    font-size: 9px;
+}
+
+th, td {
+    padding: 5px;
+    text-align: left;
+    border: 1px solid #e0e0e0;
+}
+
+th {
+    background-color: #007bff;
+    color: white;
+}
+
+tr:hover {
+    background-color: #f1f1f1; /* Highlight row on hover */
+}
