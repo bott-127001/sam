@@ -1,1 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option Chain Data Display</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Option Chain Data</h1>
+        <button id="loginBtn">Login</button>
+        <button id="sendAuthCodeBtn">Send</button>
+        <button id="getDataBtn">Get Data</button>
+        <button id="liveRefreshBtn">Live Refresh</button>
+        <br>
+        <input type="text" id="authCode" placeholder="Enter Auth Code" />
+        <input type="text" id="accessToken" placeholder="Access Token" readonly />
+        <br>
+        <input type="date" id="expiryDate" placeholder="Enter Expiry Date" />
+        
+        <div id="optionChainData" class="data-display">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Call Volume</th>
+                        <th>Call OI</th>
+                        <th>Call LTP</th>
+                        <th>Call Bid Qty</th>
+                        <th>Call Bid Price</th>
+                        <th>Call Ask Price</th>
+                        <th>Call Ask Qty</th>
+                        <th>Strike Price</th>
+                        <th>Put Ask Qty</th>
+                        <th>Put Ask Price</th>
+                        <th>Put Bid Price</th>
+                        <th>Put Bid Qty</th>
+                        <th>Put LTP</th>
+                        <th>Put OI</th>
+                        <th>Put Volume</th>
 
+                    </tr>
+                </thead>
+                <tbody id="optionChainTableBody">
+                    <!-- Rows will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
