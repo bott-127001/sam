@@ -87,11 +87,12 @@ async function fetchOptionChain(symbol) {
     return data.option_chain;
 }
 
+let initialCallVolume=0, initialCallOI=0, initialCallAskQty=0, initialCallBidQty=0, initialCallIV=0, initialCallDelta=0;
+let initialPutVolume=0, initialPutOI=0, initialPutAskQty=0, initialPutBidQty=0, initialPutIV=0, initialPutDelta=0;
+let initialprice =0;
 
-let initialCallVolume=0, initialCallOI=0, initialCallAskQty=0, initialCallBidQty=0;
-let initialPutVolume=0, initialPutOI=0, initialPutAskQty=0, initialPutBidQty=0;
-let prevCallVolume=0, prevCallOI=0, prevCallAskQty=0, prevCallBidQty=0;
-let prevPutVolume=0, prevPutOI=0, prevPutAskQty=0, prevPutBidQty=0;
+let deltCallvolume = 0, deltCalloi =0, deltPutvolume=0, deltPutoi=0;
+let initialdeltCallvolume = 0, initialdeltCalloi =0, initialdeltPutvolume=0, initialdeltPutoi=0;
 
 function updateOptionChainData(optionChain, underlyingSpotPrice) {
     optionChainTableBody.innerHTML = '';
@@ -101,14 +102,21 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     let totalCallOI = 0;
     let totalCallAskQty = 0;
     let totalCallBidQty = 0;
+    let totalCalldelta = 0;
+    let totalCallIV = 0;
+
+    let currentprice = 0;
 
     let totalPutVolume = 0;
     let totalPutOI = 0;
     let totalPutAskQty = 0;
     let totalPutBidQty = 0;
+    let totalPutdelta = 0;
+    let totalPutIV = 0;
 
     optionChain.forEach(item => {
         const strikePrice = item.strike_price;
+        let currentprice = underlyingSpotPrice;
 
         // Determine if the strike is ATM or OTM
         const isATM = strikePrice === underlyingSpotPrice;
@@ -121,6 +129,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
             totalCallOI += item.call_options.market_data.oi;
             totalCallAskQty += item.call_options.market_data.ask_qty;
             totalCallBidQty += item.call_options.market_data.bid_qty;
+            totalCalldelta += item.call_options.option_greeks.delta;
+            totalCallIV += item.call_options.option_greeks.iv;
         }
 
         // Accumulate totals for Put options
@@ -129,12 +139,16 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
             totalPutOI += item.put_options.market_data.oi;
             totalPutAskQty += item.put_options.market_data.ask_qty;
             totalPutBidQty += item.put_options.market_data.bid_qty;
+            totalPutdelta = item.put_options.option_greeks.delta;
+            totalPutIV = item.put_options.option_greeks.iv;
         }
 
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${item.call_options.market_data.volume}</td>
             <td>${item.call_options.market_data.oi}</td>
+            <td>${item.call_options.option_greeks.iv}</td>
+            <td>${item.call_options.option_greeks.delta}</td>
             <td>${item.call_options.market_data.ltp}</td>
             <td>${item.call_options.market_data.bid_qty}</td>
             <td>${item.call_options.market_data.bid_price}</td>
@@ -146,6 +160,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
             <td>${item.put_options.market_data.bid_price}</td>
             <td>${item.put_options.market_data.bid_qty}</td>
             <td>${item.put_options.market_data.ltp}</td>
+            <td>${item.put_options.option_greeks.delta}</td>
+            <td>${item.put_options.option_greeks.iv}</td>
             <td>${item.put_options.market_data.oi}</td>
             <td>${item.put_options.market_data.volume}</td>
         `;
@@ -156,11 +172,31 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         initialCallOI = totalCallOI;
         initialCallAskQty = totalCallAskQty;
         initialCallBidQty = totalCallBidQty;
+        initialCallIV = totalCallIV;
+        initialCallDelta = totalCalldelta;
         initialPutVolume = totalPutVolume;
         initialPutOI = totalPutOI;
         initialPutAskQty = totalPutAskQty;
         initialPutBidQty = totalPutBidQty;
+        initialPutIV = totalPutIV;
+        initialPutDelta = totalPutdelta;
+        initialprice = currentprice;
     }
+
+    deltCallvolume = (totalCallVolume-initialCallVolume)/totalCallVolume * 100;
+    deltCalloi = (totalCallOI-initialCallOI)/totalCallOI * 100;
+
+    deltPutvolume = (totalPutVolume-initialPutVolume)/totalPutVolume * 100;
+    deltPutoi = (totalPutOI-initialPutOI)/totalPutOI * 100;
+
+    if (!initialdeltaCallvolume)
+    {
+        initialdeltCallvolume = deltCallvolume;
+        initialdeltCalloi = deltCalloi;
+        initialdeltPutvolume = deltPutvolume;
+        initialdeltPutoi = deltPutoi;
+    }
+
 
 
     // Display combined totals for ATM and OTM
@@ -168,6 +204,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     totalRow.innerHTML = `
         <td>${totalCallVolume}</td>
         <td>${totalCallOI}</td>
+        <td>${totalCallIV}</td>
+        <td>${totalCalldelta}</td>
         <td></td>
         <td>${totalCallBidQty}</td>
         <td></td>
@@ -179,6 +217,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         <td></td>
         <td>${totalPutBidQty}</td>
         <td></td>
+        <td>${totalPutdelta}</td>
+        <td>${totalPutIV}</td>
         <td>${totalPutOI}</td>
         <td>${totalPutVolume}</td>
     `;
@@ -188,6 +228,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     diffRow.innerHTML = `
     <td>${totalCallVolume - initialCallVolume}</td>
     <td>${totalCallOI - initialCallOI}</td>
+    <td></td>
+    <td></td>
     <td></td>
     <td>${totalCallBidQty - initialCallBidQty}</td>
     <td></td>
@@ -199,41 +241,40 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     <td></td>
     <td>${totalPutBidQty - initialPutBidQty}</td>
     <td></td>
+    <td></td>
+    <td></td>
     <td>${totalPutOI - initialPutOI}</td>
     <td>${totalPutVolume - initialPutVolume}</td>
-`;
-optionChainTableBody.appendChild(diffRow);
+    `;
+    optionChainTableBody.appendChild(diffRow);
 
-const prevdiffRow = document.createElement('tr');
-    prevdiffRow.innerHTML = `
-    <td>${totalCallVolume - prevCallVolume}</td>
-    <td>${totalCallOI - prevCallOI}</td>
-    <td></td>
-    <td>${totalCallBidQty - prevCallBidQty}</td>
-    <td></td>
-    <td></td>
-    <td>${totalCallAskQty - prevCallAskQty}</td>
-    <td></td>
-    <td>${totalPutAskQty - prevPutAskQty}</td>
+    const deltarow = document.createElement('tr');
+    deltarow.innerHTML = `
+    <td>${deltCallvolume}, ${deltCallvolume - initialdeltCallvolume}</td>
+    <td>${deltCalloi}, ${deltCalloi - initialdeltCalloi}</td>
+    <td>${totalCallIV - initialCallIV}</td>
+    <td>${totalCalldelta - initialCallDelta}</td>
     <td></td>
     <td></td>
-    <td>${totalPutBidQty - prevPutBidQty}</td>
     <td></td>
-    <td>${totalPutOI - prevPutOI}</td>
-    <td>${totalPutVolume - prevPutVolume}</td>
-`;
-optionChainTableBody.appendChild(prevdiffRow);
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td>${totalPutdelta - initialPutDelta}</td>
+    <td>${totalPutIV - initialPutIV}</td>
+    <td>${deltPutoi}, ${deltPutoi - initialdeltPutoi}</td>
+    <td>${deltPutvolume}, ${deltPutvolume - initialdeltPutvolume}</td>
+    `;
+    optionChainTableBody.appendChild(deltarow);
 
-
-prevCallVolume = totalCallVolume;
-prevCallOI = totalCallOI;
-prevCallAskQty = totalCallAskQty;
-prevCallBidQty = totalCallBidQty;
-prevPutVolume = totalPutVolume;
-prevPutOI = totalPutOI;
-prevPutAskQty = totalPutAskQty;
-prevPutBidQty = totalPutBidQty;
 }
+
+
 fetchOptionChain(symbol)
     .then(optionChain => updateOptionChainData(optionChain, underlyingSpotPrice))
     .catch(error => console.error('Error fetching option chain:', error));
