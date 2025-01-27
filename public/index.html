@@ -18,6 +18,10 @@
         <input type="text" id="accessToken" placeholder="Access Token" readonly />
         <br>
         <input type="date" id="expiryDate" placeholder="Enter Expiry Date" />
+        <div id="sentimentScore">
+            Market Sentiment: <span id="sentimentResult">Calculating...</span>
+        </div>
+        
         
         <div id="optionChainData" class="data-display">
             <table>
@@ -25,6 +29,8 @@
                     <tr>
                         <th>Call Volume</th>
                         <th>Call OI</th>
+                        <th>Call IV</th>
+                        <th>Call Delta</th>
                         <th>Call LTP</th>
                         <th>Call Bid Qty</th>
                         <th>Call Bid Price</th>
@@ -36,6 +42,8 @@
                         <th>Put Bid Price</th>
                         <th>Put Bid Qty</th>
                         <th>Put LTP</th>
+                        <th>Put Delta</th>
+                        <th>Put IV</th>
                         <th>Put OI</th>
                         <th>Put Volume</th>
 
