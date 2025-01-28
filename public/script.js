@@ -6,6 +6,7 @@ const authCodeInput = document.getElementById('authCode');
 const sendAuthCodeBtn = document.getElementById('sendAuthCodeBtn');
 const optionChainTableBody = document.getElementById('optionChainTableBody');
 let liveRefreshInterval;
+let calculateChangeinterval;
 
 // Event listeners
 getDataBtn.addEventListener('click', fetchData);
@@ -93,6 +94,33 @@ let initialprice =0;
 
 let deltCallvolume = 0, deltCalloi =0, deltPutvolume=0, deltPutoi=0;
 let initialdeltCallvolume = 0, initialdeltCalloi =0, initialdeltPutvolume=0, initialdeltPutoi=0;
+let chginCallvolume=0, chginCallOI=0, chginPutOI=0, chginPutvolume=0;
+
+let calculateChangeTimerStarted = false;
+
+function calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume,initialdeltCallvolume,initialdeltCalloi,initialdeltPutvolume,initialdeltPutoi) {
+    let changeinCallvolume=0, changeinCallOI=0,changeinPutvolume=0,changeinPutOI=0
+    if(!initialdeltCallvolume)
+        {
+            initialdeltCallvolume = deltCallvolume;
+            initialdeltCalloi = deltCalloi;
+            initialdeltPutvolume = deltPutvolume;
+            initialdeltPutoi = deltPutoi;
+    
+        }
+    
+    changeinCallvolume = deltCallvolume - initialdeltCallvolume;
+    changeinCallOI = deltCalloi - initialdeltCalloi;
+    changeinPutvolume = deltPutvolume - initialdeltPutvolume;
+    changeinPutOI = deltPutoi - initialdeltPutoi;
+    // Update the lastTotal for the next calculation
+    initialdeltCallvolume = deltCallvolume;
+    initialdeltCalloi = deltCalloi;
+    initialdeltPutvolume = deltPutvolume;
+    initialdeltPutoi = deltPutoi;
+
+    return {changeinCallvolume, changeinCallOI, changeinPutOI, changeinPutvolume};  // Return the calculated change
+  }
 
 function updateOptionChainData(optionChain, underlyingSpotPrice) {
     optionChainTableBody.innerHTML = '';
@@ -139,8 +167,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
             totalPutOI += item.put_options.market_data.oi;
             totalPutAskQty += item.put_options.market_data.ask_qty;
             totalPutBidQty += item.put_options.market_data.bid_qty;
-            totalPutdelta = item.put_options.option_greeks.delta;
-            totalPutIV = item.put_options.option_greeks.iv;
+            totalPutdelta += item.put_options.option_greeks.delta;
+            totalPutIV += item.put_options.option_greeks.iv;
         }
 
         const row = document.createElement('tr');
@@ -188,24 +216,24 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
 
     deltPutvolume = (totalPutVolume-initialPutVolume)/totalPutVolume * 100;
     deltPutoi = (totalPutOI-initialPutOI)/totalPutOI * 100;
+    console.log("Delta Call OI:", deltCalloi);
 
-    if (!initialdeltaCallvolume)
-    {
-        initialdeltCallvolume = deltCallvolume;
-        initialdeltCalloi = deltCalloi;
-        initialdeltPutvolume = deltPutvolume;
-        initialdeltPutoi = deltPutoi;
+    if (!calculateChangeTimerStarted) {
+        calculateChangeTimerStarted = true;
+        setInterval(() => {
+            calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume,initialdeltCallvolume,initialdeltCalloi,initialdeltPutvolume,initialdeltPutoi);
+        }, 15 * 60 * 1000);
     }
-
-
+    
+      
 
     // Display combined totals for ATM and OTM
     const totalRow = document.createElement('tr');
     totalRow.innerHTML = `
         <td>${totalCallVolume}</td>
         <td>${totalCallOI}</td>
-        <td>${totalCallIV}</td>
-        <td>${totalCalldelta}</td>
+        <td>${totalCallIV.toFixed(2)}</td>
+        <td>${totalCalldelta.toFixed(2)}</td>
         <td></td>
         <td>${totalCallBidQty}</td>
         <td></td>
@@ -217,8 +245,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         <td></td>
         <td>${totalPutBidQty}</td>
         <td></td>
-        <td>${totalPutdelta}</td>
-        <td>${totalPutIV}</td>
+        <td>${totalPutdelta.toFixed(2)}</td>
+        <td>${totalPutIV.toFixed(2)}</td>
         <td>${totalPutOI}</td>
         <td>${totalPutVolume}</td>
     `;
@@ -250,10 +278,10 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
 
     const deltarow = document.createElement('tr');
     deltarow.innerHTML = `
-    <td>${deltCallvolume}, ${deltCallvolume - initialdeltCallvolume}</td>
-    <td>${deltCalloi}, ${deltCalloi - initialdeltCalloi}</td>
-    <td>${totalCallIV - initialCallIV}</td>
-    <td>${totalCalldelta - initialCallDelta}</td>
+    <td>${deltCallvolume.toFixed(3)}, ${changes.changeinCallvolume.toFixed(3)}</td>
+    <td>${deltCalloi.toFixed(3)}, ${changes.changeinCallOI.toFixed(3)}</td>
+    <td>${(totalCallIV - initialCallIV).toFixed(4)}</td>
+    <td>${(totalCalldelta - initialCallDelta).toFixed(4)}</td>
     <td></td>
     <td></td>
     <td></td>
@@ -265,10 +293,10 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     <td></td>
     <td></td>
     <td></td>
-    <td>${totalPutdelta - initialPutDelta}</td>
-    <td>${totalPutIV - initialPutIV}</td>
-    <td>${deltPutoi}, ${deltPutoi - initialdeltPutoi}</td>
-    <td>${deltPutvolume}, ${deltPutvolume - initialdeltPutvolume}</td>
+    <td>${(totalPutdelta - initialPutDelta).toFixed(4)}</td>
+    <td>${(totalPutIV - initialPutIV).toFixed(4)}</td>
+    <td>${deltPutoi.toFixed(3)}, ${changes.changeinPutOI.toFixed(3)}</td>
+    <td>${deltPutvolume.toFixed(3)}, ${changes.changeinPutvolume.toFixed(3)}</td>
     `;
     optionChainTableBody.appendChild(deltarow);
 
