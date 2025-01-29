@@ -227,7 +227,6 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         setInterval(() => {
             changes =calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume,initialdeltCallvolume,initialdeltCalloi,initialdeltPutvolume,initialdeltPutoi);
         }, 900000);
-        console.log(changes);
     }
     
       
