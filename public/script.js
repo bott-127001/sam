@@ -71,7 +71,6 @@ function fetchData() {
         if (data.status === "success" && Array.isArray(data.data)) {
 
             const underlyingSpotPrice = data.data[0].underlying_spot_price;
-            console.log('Underlying Spot Price:', underlyingSpotPrice);
 
             updateOptionChainData(data.data, underlyingSpotPrice);
         } else {
@@ -94,21 +93,28 @@ let initialprice =0;
 
 let deltCallvolume = 0, deltCalloi =0, deltPutvolume=0, deltPutoi=0;
 let initialdeltCallvolume = 0, initialdeltCalloi =0, initialdeltPutvolume=0, initialdeltPutoi=0;
-let chginCallvolume=0, chginCallOI=0, chginPutOI=0, chginPutvolume=0;
+
+let changeinCallvolume=0, changeinCallOI=0,changeinPutvolume=0,changeinPutOI=0;
 
 let calculateChangeTimerStarted = false;
 
-function calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume,initialdeltCallvolume,initialdeltCalloi,initialdeltPutvolume,initialdeltPutoi) {
-    let changeinCallvolume=0, changeinCallOI=0,changeinPutvolume=0,changeinPutOI=0
+let changes = {
+    changeinCallvolume: 0,
+    changeinCallOI: 0,
+    changeinPutOI: 0,
+    changeinPutvolume: 0
+};
+
+function calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume) {
+    
     if(!initialdeltCallvolume)
         {
             initialdeltCallvolume = deltCallvolume;
             initialdeltCalloi = deltCalloi;
             initialdeltPutvolume = deltPutvolume;
             initialdeltPutoi = deltPutoi;
-    
+            return {changeinCallvolume, changeinCallOI, changeinPutOI, changeinPutvolume}
         }
-    
     changeinCallvolume = deltCallvolume - initialdeltCallvolume;
     changeinCallOI = deltCalloi - initialdeltCalloi;
     changeinPutvolume = deltPutvolume - initialdeltPutvolume;
@@ -118,7 +124,6 @@ function calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume,initi
     initialdeltCalloi = deltCalloi;
     initialdeltPutvolume = deltPutvolume;
     initialdeltPutoi = deltPutoi;
-
     return {changeinCallvolume, changeinCallOI, changeinPutOI, changeinPutvolume};  // Return the calculated change
   }
 
@@ -216,13 +221,13 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
 
     deltPutvolume = (totalPutVolume-initialPutVolume)/totalPutVolume * 100;
     deltPutoi = (totalPutOI-initialPutOI)/totalPutOI * 100;
-    console.log("Delta Call OI:", deltCalloi);
 
     if (!calculateChangeTimerStarted) {
         calculateChangeTimerStarted = true;
         setInterval(() => {
-            calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume,initialdeltCallvolume,initialdeltCalloi,initialdeltPutvolume,initialdeltPutoi);
-        }, 15 * 60 * 1000);
+            changes =calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume,initialdeltCallvolume,initialdeltCalloi,initialdeltPutvolume,initialdeltPutoi);
+        }, 60000);
+        console.log(changes);
     }
     
       
