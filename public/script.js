@@ -5,147 +5,180 @@ const accessTokenInput = document.getElementById('accessToken');
 const authCodeInput = document.getElementById('authCode');
 const sendAuthCodeBtn = document.getElementById('sendAuthCodeBtn');
 const optionChainTableBody = document.getElementById('optionChainTableBody');
-let liveRefreshInterval;
-let calculateChangeinterval;
 
-// Event listeners
+// ========== Background Execution Setup ==========
+let worker;
+let calculateChangeinterval;
+let liveRefreshInterval;
+let isLiveRefreshActive = localStorage.getItem('liveRefreshActive') === 'true';
+
+// Web Worker for background execution
+if (window.Worker) {
+    worker = new Worker('worker.js');
+    
+    worker.onmessage = function(e) {
+        if (e.data === 'fetch') {
+            fetchData();
+        }
+    };
+
+    // Restore previous state
+    if (isLiveRefreshActive) {
+        worker.postMessage('start');
+        liveRefreshBtn.textContent = 'Stop Refresh';
+    }
+}
+
+// ========== State Management ==========
+let initialState = JSON.parse(localStorage.getItem('optionChainState')) || {
+    call: { volume: 0, OI: 0, askQty: 0, bidQty: 0, IV: 0, delta: 0 },
+    put: { volume: 0, OI: 0, askQty: 0, bidQty: 0, IV: 0, delta: 0 },
+    price: 0,
+    deltas: { callVolume: 0, callOI: 0, putVolume: 0, putOI: 0 },
+    changes: { changeinCallvolume: 0, changeinCallOI: 0, changeinPutOI: 0, changeinPutvolume: 0 }
+};
+
+// ========== Original Variables ==========
+let initialCallVolume = initialState.call.volume;
+let initialCallOI = initialState.call.OI;
+let initialCallAskQty = initialState.call.askQty;
+let initialCallBidQty = initialState.call.bidQty;
+let initialCallIV = initialState.call.IV;
+let initialCallDelta = initialState.call.delta;
+
+let initialPutVolume = initialState.put.volume;
+let initialPutOI = initialState.put.OI;
+let initialPutAskQty = initialState.put.askQty;
+let initialPutBidQty = initialState.put.bidQty;
+let initialPutIV = initialState.put.IV;
+let initialPutDelta = initialState.put.delta;
+
+let initialprice = initialState.price;
+let deltCallvolume = initialState.deltas.callVolume;
+let deltCalloi = initialState.deltas.callOI;
+let deltPutvolume = initialState.deltas.putVolume;
+let deltPutoi = initialState.deltas.putOI;
+
+let initialdeltCallvolume = initialState.deltas.callVolume;
+let initialdeltCalloi = initialState.deltas.callOI;
+let initialdeltPutvolume = initialState.deltas.putVolume;
+let initialdeltPutoi = initialState.deltas.putOI;
+
+let changeinCallvolume = initialState.changes.changeinCallvolume;
+let changeinCallOI = initialState.changes.changeinCallOI;
+let changeinPutvolume = initialState.changes.changeinPutvolume;
+let changeinPutOI = initialState.changes.changeinPutOI;
+
+let calculateChangeTimerStarted = localStorage.getItem('calculateChangeTimer') === 'true';
+
+let changes;
+// ========== Event Listeners ==========
 getDataBtn.addEventListener('click', fetchData);
 liveRefreshBtn.addEventListener('click', toggleLiveRefresh);
 loginBtn.addEventListener('click', startAuthentication);
 sendAuthCodeBtn.addEventListener('click', submitAuthCode);
 
+// ========== Core Functions ==========
 function startAuthentication() {
     const authUrl = '/login'; 
-    window.open(authUrl, '_blank'); // Open the URL in a new tab
+    window.open(authUrl, '_blank');
 }
 
-// Function to submit the authorization code and get the access token
 function submitAuthCode() {
     const authCode = authCodeInput.value;
 
     fetch('/generate-token', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authCode }),
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
+        if (!response.ok) throw new Error('Network response was not ok');
         return response.json();
     })
     .then(data => {
         accessTokenInput.value = data.accessToken;
+        localStorage.setItem('accessToken', data.accessToken);
         alert('Access Token generated successfully!');
     })
-    .catch(error => console.error('Error generating access token:', error));
+    .catch(error => {
+        console.error('Error generating access token:', error);
+        alert('Error generating token: ' + error.message);
+    });
 }
 
-// Function to fetch data from your backend
-function fetchData() {
-    const accessToken = accessTokenInput.value;
+async function fetchData() {
+    const accessToken = localStorage.getItem('accessToken') || accessTokenInput.value;
     const inputDate = document.getElementById('expiryDate').value;
 
     if (!inputDate) {
-        console.error('Expiry date is not provided');
         alert('Please enter a valid expiry date.');
-        return; // Exit the function if the date is not valid
+        return;
     }
 
-    fetch(`/option-chain?accessToken=${accessToken}&expiryDate=${inputDate}`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log(data);
+    try {
+        const response = await fetch(`/option-chain?accessToken=${accessToken}&expiryDate=${inputDate}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        
+        const data = await response.json();
+        
         if (data.status === "success" && Array.isArray(data.data)) {
-
             const underlyingSpotPrice = data.data[0].underlying_spot_price;
-
             updateOptionChainData(data.data, underlyingSpotPrice);
         } else {
-            console.error('Expected an array but got:', data);
-            alert('Error: Expected an array of option chain data.');
+            throw new Error('Invalid data format received');
         }
-    })
-    .catch(error => console.error('Error fetching data:', error));
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        alert('Fetch error: ' + error.message);
+    }
 }
 
-async function fetchOptionChain(symbol) {
-    const response = await fetch(`https://api.example.com/options/${symbol}`);
-    const data = await response.json();
-    return data.option_chain;
+// ========== Background Execution Control ==========
+function toggleLiveRefresh() {
+    if (isLiveRefreshActive) {
+        worker.postMessage('stop');
+        liveRefreshBtn.textContent = 'Live Refresh';
+    } else {
+        worker.postMessage('start');
+        liveRefreshBtn.textContent = 'Stop Refresh';
+    }
+    isLiveRefreshActive = !isLiveRefreshActive;
+    localStorage.setItem('liveRefreshActive', isLiveRefreshActive);
 }
 
-let initialCallVolume=0, initialCallOI=0, initialCallAskQty=0, initialCallBidQty=0, initialCallIV=0, initialCallDelta=0;
-let initialPutVolume=0, initialPutOI=0, initialPutAskQty=0, initialPutBidQty=0, initialPutIV=0, initialPutDelta=0;
-let initialprice =0;
+// ========== State Management Functions ==========
 
-let deltCallvolume = 0, deltCalloi =0, deltPutvolume=0, deltPutoi=0;
-let initialdeltCallvolume = 0, initialdeltCalloi =0, initialdeltPutvolume=0, initialdeltPutoi=0;
 
-let changeinCallvolume=0, changeinCallOI=0,changeinPutvolume=0,changeinPutOI=0;
+function calculateChange(deltCallvolume, deltCalloi, deltPutoi, deltPutvolume) {
+    if (!initialdeltCallvolume) {
+        initialdeltCallvolume = deltCallvolume;
+        initialdeltCalloi = deltCalloi;
+        initialdeltPutvolume = deltPutvolume;
+        initialdeltPutoi = deltPutoi;
+        return { changeinCallvolume, changeinCallOI, changeinPutOI, changeinPutvolume };
+    }
 
-let calculateChangeTimerStarted = false;
-
-let changes = {
-    changeinCallvolume: 0,
-    changeinCallOI: 0,
-    changeinPutOI: 0,
-    changeinPutvolume: 0
-};
-
-function calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume) {
-    
-    if(!initialdeltCallvolume)
-        {
-            initialdeltCallvolume = deltCallvolume;
-            initialdeltCalloi = deltCalloi;
-            initialdeltPutvolume = deltPutvolume;
-            initialdeltPutoi = deltPutoi;
-            return {changeinCallvolume, changeinCallOI, changeinPutOI, changeinPutvolume}
-        }
     changeinCallvolume = deltCallvolume - initialdeltCallvolume;
     changeinCallOI = deltCalloi - initialdeltCalloi;
     changeinPutvolume = deltPutvolume - initialdeltPutvolume;
     changeinPutOI = deltPutoi - initialdeltPutoi;
-    // Update the lastTotal for the next calculation
+
     initialdeltCallvolume = deltCallvolume;
     initialdeltCalloi = deltCalloi;
     initialdeltPutvolume = deltPutvolume;
     initialdeltPutoi = deltPutoi;
-    return {changeinCallvolume, changeinCallOI, changeinPutOI, changeinPutvolume};  // Return the calculated change
-  }
+    
+    return { changeinCallvolume, changeinCallOI, changeinPutOI, changeinPutvolume };
+}
 
+// ========== Original Update Function ==========
 function updateOptionChainData(optionChain, underlyingSpotPrice) {
     optionChainTableBody.innerHTML = '';
 
-
-    let totalCallVolume = 0;
-    let totalCallOI = 0;
-    let totalCallAskQty = 0;
-    let totalCallBidQty = 0;
-    let totalCalldelta = 0;
-    let totalCallIV = 0;
-
-    let currentprice = 0;
-
-    let totalPutVolume = 0;
-    let totalPutOI = 0;
-    let totalPutAskQty = 0;
-    let totalPutBidQty = 0;
-    let totalPutdelta = 0;
-    let totalPutIV = 0;
+    let totalCallVolume = 0, totalCallOI = 0, totalCallAskQty = 0, totalCallBidQty = 0, totalCalldelta = 0, totalCallIV = 0;
+    let totalPutVolume = 0, totalPutOI = 0, totalPutAskQty = 0, totalPutBidQty = 0, totalPutdelta = 0, totalPutIV = 0;
+    let currentprice = underlyingSpotPrice;
 
     optionChain.forEach(item => {
         const strikePrice = item.strike_price;
@@ -200,6 +233,7 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         `;
         optionChainTableBody.appendChild(row);
     });
+
     if (!initialCallVolume) {
         initialCallVolume = totalCallVolume;
         initialCallOI = totalCallOI;
@@ -225,13 +259,12 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     if (!calculateChangeTimerStarted) {
         calculateChangeTimerStarted = true;
         setInterval(() => {
-            changes =calculateChange(deltCallvolume,deltCalloi,deltPutoi,deltPutvolume,initialdeltCallvolume,initialdeltCalloi,initialdeltPutvolume,initialdeltPutoi);
+            changes = calculateChange(deltCallvolume, deltCalloi, deltPutoi, deltPutvolume);
         }, 900000);
+        localStorage.setItem('calculateChangeTimer', 'true');
     }
-    
-      
 
-    // Display combined totals for ATM and OTM
+    //displaying values in the table
     const totalRow = document.createElement('tr');
     totalRow.innerHTML = `
         <td>${totalCallVolume}</td>
@@ -282,8 +315,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
 
     const deltarow = document.createElement('tr');
     deltarow.innerHTML = `
-    <td>${deltCallvolume.toFixed(3)}, ${changes.changeinCallvolume.toFixed(3)}</td>
-    <td>${deltCalloi.toFixed(3)}, ${changes.changeinCallOI.toFixed(3)}</td>
+    <td>${deltCallvolume.toFixed(3)}, ${changes?.changeinCallvolume?.toFixed(3) || '0.000'}</td>
+    <td>${deltCalloi.toFixed(3)}, ${changes?.changeinCallOI?.toFixed(3) ||'0.000'}</td>
     <td>${(totalCallIV - initialCallIV).toFixed(4)}</td>
     <td>${(totalCalldelta - initialCallDelta).toFixed(4)}</td>
     <td></td>
@@ -299,25 +332,45 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     <td></td>
     <td>${(totalPutdelta - initialPutDelta).toFixed(4)}</td>
     <td>${(totalPutIV - initialPutIV).toFixed(4)}</td>
-    <td>${deltPutoi.toFixed(3)}, ${changes.changeinPutOI.toFixed(3)}</td>
-    <td>${deltPutvolume.toFixed(3)}, ${changes.changeinPutvolume.toFixed(3)}</td>
+    <td>${deltPutoi.toFixed(3)}, ${changes?.changeinPutOI?.toFixed(3) || '0.000'}</td>
+    <td>${deltPutvolume.toFixed(3)}, ${changes?.changeinPutvolume?.toFixed(3) || '0.000'}</td>
     `;
     optionChainTableBody.appendChild(deltarow);
 
 }
 
 
-fetchOptionChain(symbol)
-    .then(optionChain => updateOptionChainData(optionChain, underlyingSpotPrice))
-    .catch(error => console.error('Error fetching option chain:', error));
-// Function to toggle live refresh
-function toggleLiveRefresh() {
-    if (liveRefreshInterval) {
-        clearInterval(liveRefreshInterval);
-        liveRefreshInterval = null;
-        liveRefreshBtn.textContent = 'Live Refresh';
-    } else {
-        liveRefreshInterval = setInterval(fetchData, 5000); // Fetch data every minute
-        liveRefreshBtn.textContent = 'Stop Refresh';
+    function saveState() {
+        const state = {
+            call: {
+                volume: totalCallVolume,
+                OI: totalCallOI,
+                askQty: totalCallAskQty,
+                bidQty: totalCallBidQty,
+                IV: totalCallIV,
+                delta: totalCalldelta
+            },
+            put: {
+                volume: totalPutVolume,
+                OI: totalPutOI,
+                askQty: totalPutAskQty,
+                bidQty: totalPutBidQty,
+                IV: totalPutIV,
+                delta: totalPutdelta
+            },
+            price: currentprice,
+            deltas: { callVolume: deltCallvolume, callOI: deltCalloi, putVolume: deltPutvolume, putOI: deltPutoi },
+            changes: { changeinCallvolume, changeinCallOI, changeinPutOI, changeinPutvolume }
+        };
+        
+        localStorage.setItem('optionChainState', JSON.stringify(state));
+        localStorage.setItem('calculateChangeTimer', calculateChangeTimerStarted);
     }
-}
+    
+
+
+// ========== Cleanup ==========
+window.addEventListener('beforeunload', () => {
+    if (worker) worker.postMessage('stop');
+    saveState();
+});
