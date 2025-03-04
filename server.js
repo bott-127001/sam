@@ -18,8 +18,8 @@ app.get('/', (req, res) => {
 });
 
 // Your existing routes for Upstox API
-const clientId = "a3aed47e-912e-4cde-ace5-6736d658b4b7"; // Your API Key
-const clientSecret = "g750n4o4ou"; // Your API Secret
+const clientId = "2f86a5b5-bef6-4c1a-9ce6-1753df6c0f6b"; // Your API Key
+const clientSecret = "yw71gnmh3g"; // Your API Secret
 const redirectUri = "https://www.google.co.in/"; // Your Redirect URI
 
 // Step 1: Redirect to Upstox for authentication
