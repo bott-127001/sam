@@ -1,3 +1,29 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // Restore all input fields
+    accessTokenInput.value = localStorage.getItem('accessToken') || '';
+    authCodeInput.value = localStorage.getItem('authCode') || '';
+    document.getElementById('expiryDate').value = localStorage.getItem('expiryDate') || '';
+    
+    // Restore button states
+    if (localStorage.getItem('liveRefreshActive') === 'true') {
+      liveRefreshBtn.textContent = 'Stop Refresh';
+    }
+  
+    // Load calculation state
+    loadState();
+    
+    // Auto-populate table if data exists
+    const savedChain = localStorage.getItem('rawOptionChain');
+    if (savedChain) {
+      const underlyingPrice = localStorage.getItem('lastUnderlyingPrice');
+      updateOptionChainData(JSON.parse(savedChain), parseFloat(underlyingPrice));
+    }
+    
+    // Auto-start refresh if enabled
+    if (localStorage.getItem('liveRefreshActive') === 'true') {
+      toggleLiveRefresh();
+    }
+  });
 const getDataBtn = document.getElementById('getDataBtn');
 const liveRefreshBtn = document.getElementById('liveRefreshBtn');
 const loginBtn = document.getElementById('loginBtn');
@@ -124,6 +150,8 @@ async function fetchData() {
         
         if (data.status === "success" && Array.isArray(data.data)) {
             const underlyingSpotPrice = data.data[0].underlying_spot_price;
+            localStorage.setItem('rawOptionChain', JSON.stringify(data.data));
+            localStorage.setItem('lastUnderlyingPrice', underlyingSpotPrice);
             updateOptionChainData(data.data, underlyingSpotPrice);
         } else {
             throw new Error('Invalid data format received');
@@ -340,33 +368,71 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
 }
 
 
-    function saveState() {
-        const state = {
-            call: {
-                volume: totalCallVolume,
-                OI: totalCallOI,
-                askQty: totalCallAskQty,
-                bidQty: totalCallBidQty,
-                IV: totalCallIV,
-                delta: totalCalldelta
-            },
-            put: {
-                volume: totalPutVolume,
-                OI: totalPutOI,
-                askQty: totalPutAskQty,
-                bidQty: totalPutBidQty,
-                IV: totalPutIV,
-                delta: totalPutdelta
-            },
-            price: currentprice,
-            deltas: { callVolume: deltCallvolume, callOI: deltCalloi, putVolume: deltPutvolume, putOI: deltPutoi },
-            changes: { changeinCallvolume, changeinCallOI, changeinPutOI, changeinPutvolume }
-        };
-        
-        localStorage.setItem('optionChainState', JSON.stringify(state));
-        localStorage.setItem('calculateChangeTimer', calculateChangeTimerStarted);
-    }
+function saveState() {
+    const state = {
+      // Calculation variables
+      initialCallVolume,
+      initialCallOI,
+      initialCallAskQty,
+      initialCallBidQty,
+      initialCallIV,
+      initialCallDelta,
+      initialPutVolume,
+      initialPutOI,
+      initialPutAskQty,
+      initialPutBidQty,
+      initialPutIV,
+      initialPutDelta,
+      initialprice,
+      
+      // Delta calculations
+      deltCallvolume,
+      deltCalloi,
+      deltPutvolume,
+      deltPutoi,
+      
+      // Changes over time
+      changeinCallvolume,
+      changeinCallOI,
+      changeinPutvolume,
+      changeinPutOI,
+      
+      // UI state
+      calculateChangeTimerStarted
+    };
     
+    localStorage.setItem('optionChainState', JSON.stringify(state));
+  } 
+  function loadState() {
+    const savedState = JSON.parse(localStorage.getItem('optionChainState')) || initialState;
+    
+    // Restore calculation variables
+    initialCallVolume = savedState.initialCallVolume || 0;
+    initialCallOI = savedState.initialCallOI || 0;
+    initialCallAskQty = savedState.initialCallAskQty || 0;
+    initialCallBidQty = savedState.initialCallBidQty || 0;
+    initialCallIV = savedState.initialCallIV || 0;
+    initialCallDelta = savedState.initialCallDelta || 0;
+    initialPutVolume = savedState.initialPutVolume || 0;
+    initialPutOI = savedState.initialPutOI || 0;
+    initialPutAskQty = savedState.initialPutAskQty || 0;
+    initialPutBidQty = savedState.initialPutBidQty || 0;
+    initialPutIV = savedState.initialPutIV || 0;
+    initialPutDelta = savedState.initialPutDelta || 0;
+    initialprice = savedState.initialprice || 0;
+    
+    // Restore deltas and changes
+    deltCallvolume = savedState.deltCallvolume || 0;
+    deltCalloi = savedState.deltCalloi || 0;
+    deltPutvolume = savedState.deltPutvolume || 0;
+    deltPutoi = savedState.deltPutoi || 0;
+    changeinCallvolume = savedState.changeinCallvolume || 0;
+    changeinCallOI = savedState.changeinCallOI || 0;
+    changeinPutvolume = savedState.changeinPutvolume || 0;
+    changeinPutOI = savedState.changeinPutOI || 0;
+    
+    calculateChangeTimerStarted = savedState.calculateChangeTimerStarted || false;
+  }   
 
 
 // ========== Cleanup ==========
