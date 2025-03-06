@@ -55,15 +55,6 @@ if (window.Worker) {
     }
 }
 
-// ========== State Management ==========
-let initialState = JSON.parse(localStorage.getItem('optionChainState')) || {
-    call: { volume: 0, OI: 0, askQty: 0, bidQty: 0, IV: 0, delta: 0 },
-    put: { volume: 0, OI: 0, askQty: 0, bidQty: 0, IV: 0, delta: 0 },
-    price: 0,
-    deltas: { callVolume: 0, callOI: 0, putVolume: 0, putOI: 0 },
-    changes: { changeinCallvolume: 0, changeinCallOI: 0, changeinPutOI: 0, changeinPutvolume: 0 }
-};
-
 // ========== Original Variables ==========
 let initialCallVolume = initialState.call.volume;
 let initialCallOI = initialState.call.OI;
@@ -161,6 +152,9 @@ async function fetchData() {
         alert('Fetch error: ' + error.message);
     }
 }
+
+
+
 
 // ========== Background Execution Control ==========
 function toggleLiveRefresh() {
@@ -364,12 +358,25 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     <td>${deltPutvolume.toFixed(3)}, ${changes?.changeinPutvolume?.toFixed(3) || '0.000'}</td>
     `;
     optionChainTableBody.appendChild(deltarow);
+    saveState();
 
 }
-
-
 function saveState() {
     const state = {
+
+       // Total Variables
+       totalCallVolume,
+       totalCallOI,
+       totalCallAskQty,
+       totalCallBidQty,
+       totalCallIV,
+       totalCallDelta,
+       totalPutVolume,
+       totalPutOI,
+       totalPutAskQty,
+       totalPutBidQty,
+       totalPutIV,
+       totalPutDelta,
       // Calculation variables
       initialCallVolume,
       initialCallOI,
@@ -406,6 +413,20 @@ function saveState() {
   function loadState() {
     const savedState = JSON.parse(localStorage.getItem('optionChainState')) || initialState;
     
+    //Restore Total Variables
+    totalCallVolume = savedState.initialCallVolume || 0,
+    totalCallOI = savedState.initialCallOI || 0,
+    totalCallAskQty = savedState.initialCallAskQty || 0,
+    totalCallBidQty = savedState.initialCallBidQty || 0,
+    totalCallIV = savedState.initialCallIV || 0,
+    totalCallDelta = savedState.initialCallDelta || 0,
+    totalPutVolume = savedState.initialPutVolume || 0,
+    totalPutOI = savedState.initialPutOI || 0,
+    totalPutAskQty = savedState.initialPutAskQty || 0,
+    totalPutBidQty = savedState.initialPutBidQty || 0,
+    totalPutIV = savedState.initialPutIV || 0,
+    totalPutDelta = savedState.initialPutDelta || 0,
+
     // Restore calculation variables
     initialCallVolume = savedState.initialCallVolume || 0;
     initialCallOI = savedState.initialCallOI || 0;
