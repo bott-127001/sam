@@ -70,3 +70,21 @@ th {
 tr:hover {
     background-color: #f1f1f1; /* Highlight row on hover */
 }
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 24px;
+    border-radius: 4px;
+    color: white;
+    z-index: 1000;
+    animation: fadeIn 0.3s;
+}
+.toast.success { background: #4CAF50; }
+.toast.error { background: #f44336; }
+.toast.info { background: #2196F3; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
