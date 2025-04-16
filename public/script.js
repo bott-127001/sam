@@ -163,7 +163,7 @@ function clearDashboard() {
     
     // 3. Reset UI
     optionChainTableBody.innerHTML = '';
-    accessTokenInput.value = localStorage.getItem('accessToken') || ''; // Preserve token
+    accessTokenInput.value =''; // Preserve token
     authCodeInput.value = '';
     expiryDateInput.value = '';
     
