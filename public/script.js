@@ -8,7 +8,7 @@ const elements = {
     sendAuthCodeBtn: document.getElementById('sendAuthCodeBtn'),
     optionChainTableBody: document.getElementById('optionChainTableBody'),
     expiryDateInput: document.getElementById('expiryDate'),
-    resetBtn = document.getElementById('resetBtn')
+    resetBtn: document.getElementById('resetBtn')
 };
 
 // State initialization
