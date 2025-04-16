@@ -7,7 +7,8 @@ const elements = {
     authCodeInput: document.getElementById('authCode'),
     sendAuthCodeBtn: document.getElementById('sendAuthCodeBtn'),
     optionChainTableBody: document.getElementById('optionChainTableBody'),
-    expiryDateInput: document.getElementById('expiryDate')
+    expiryDateInput: document.getElementById('expiryDate'),
+    resetBtn = document.getElementById('resetBtn')
 };
 
 // State initialization
@@ -65,7 +66,24 @@ function init() {
     elements.liveRefreshBtn.addEventListener('click', toggleLiveRefresh);
     elements.loginBtn.addEventListener('click', startAuthentication);
     elements.sendAuthCodeBtn.addEventListener('click', submitAuthCode);
+    elements.resetBtn.addEventListener('click', () => {
+    if (confirm('This will reset ALL calculations and data. Proceed?')) {
+        clearDashboard();
+        // Optional: Show visual feedback
+        showToast('Dashboard has been reset to initial state');
+    }
+    });
 }
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 3000);
+}
+
 
 // Core functions
 function startAuthentication() {
@@ -117,29 +135,46 @@ async function fetchData() {
 }
 
 function toggleLiveRefresh() {
-    state.isLiveRefreshActive = !state.isLiveRefreshActive;
-    localStorage.setItem('liveRefreshActive', state.isLiveRefreshActive);
-
-    if (state.isLiveRefreshActive) {
-        state.worker.postMessage('start');
-        elements.liveRefreshBtn.textContent = 'Stop Refresh';
+    isLiveRefreshActive = !isLiveRefreshActive;
+    localStorage.setItem('liveRefreshActive', isLiveRefreshActive);
+    
+    if (isLiveRefreshActive) {
+        worker.postMessage('start');
+        liveRefreshBtn.textContent = 'Stop Refresh';
     } else {
-        state.worker.postMessage('stop');
-        elements.liveRefreshBtn.textContent = 'Live Refresh';
-        clearLocalStorageData();
-        resetInitialValues();
-        elements.optionChainTableBody.innerHTML = '';
+        worker.postMessage('stop');
+        liveRefreshBtn.textContent = 'Live Refresh';
     }
 }
 
-function clearLocalStorageData() {
-    ['rawOptionChain', 'lastUnderlyingPrice', 'optionChainState', 'lastChangeCalculation']
-        .forEach(key => localStorage.removeItem(key));
-}
+function clearDashboard() {
+    // 1. Clear ALL relevant localStorage data
+    localStorage.clear();
+    
+    // 2. Reset ALL state variables
+    initialValues = { 
+        CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
+        PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0,
+        price: 0 
+    };
 
-function resetInitialValues() {
-    state.initialValues = { CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
-                          PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0, price: 0 };
+    changes = deltas = totals = difference = {...initialValues};
+    deltaReferenceValues = {...deltas, timestamp: 0};
+    
+    // 3. Reset UI
+    optionChainTableBody.innerHTML = '';
+    accessTokenInput.value = localStorage.getItem('accessToken') || ''; // Preserve token
+    authCodeInput.value = '';
+    expiryDateInput.value = '';
+    
+    // 4. Stop live refresh if active
+    if (isLiveRefreshActive && worker) {
+        worker.postMessage('stop');
+        liveRefreshBtn.textContent = 'Live Refresh';
+        isLiveRefreshActive = false;
+    }
+    
+    console.log('Dashboard fully cleared');
 }
 
 function calculateChange() {
