@@ -75,10 +75,17 @@ function init() {
     });
 }
 
-function showToast(message, type = 'info') {
+function showToast(message) {
+    // Simple toast implementation
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
     toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.right = '20px';
+    toast.style.padding = '10px 20px';
+    toast.style.background = '#4CAF50';
+    toast.style.color = 'white';
+    toast.style.borderRadius = '4px';
     document.body.appendChild(toast);
     
     setTimeout(() => toast.remove(), 3000);
@@ -162,16 +169,16 @@ function clearDashboard() {
     deltaReferenceValues = {...deltas, timestamp: 0};
     
     // 3. Reset UI
-    optionChainTableBody.innerHTML = '';
-    accessTokenInput.value =''; // Preserve token
-    authCodeInput.value = '';
-    expiryDateInput.value = '';
+    elements.optionChainTableBody.innerHTML = '';
+    elements.accessTokenInput.value =''; // Preserve token
+    elements.authCodeInput.value = '';
+    elements.expiryDateInput.value = '';
     
     // 4. Stop live refresh if active
-    if (isLiveRefreshActive && worker) {
-        worker.postMessage('stop');
-        liveRefreshBtn.textContent = 'Live Refresh';
-        isLiveRefreshActive = false;
+    if (state.isLiveRefreshActive && state.worker) {
+        state.worker.postMessage('stop');
+        elements.liveRefreshBtn.textContent = 'Live Refresh';
+        state.isLiveRefreshActive = false;
     }
     
     console.log('Dashboard fully cleared');
