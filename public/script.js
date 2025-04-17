@@ -164,8 +164,13 @@ function clearDashboard() {
         PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0,
         price: 0 
     };
-
-    changes = deltas = totals = difference = {...initialValues};
+    
+    deltas = { 
+        CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
+        CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0 
+    };
+    
+    changes = totals = difference = {...initialValues};
     deltaReferenceValues = {...deltas, timestamp: 0};
     
     // 3. Reset UI
