@@ -142,10 +142,10 @@ async function fetchData() {
 }
 
 function toggleLiveRefresh() {
-    isLiveRefreshActive = !isLiveRefreshActive;
-    localStorage.setItem('liveRefreshActive', isLiveRefreshActive);
+    state.isLiveRefreshActive = !state.isLiveRefreshActive;
+    localStorage.setItem('liveRefreshActive', state.isLiveRefreshActive);
     
-    if (isLiveRefreshActive) {
+    if (state.isLiveRefreshActive) {
         worker.postMessage('start');
         liveRefreshBtn.textContent = 'Stop Refresh';
     } else {
