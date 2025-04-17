@@ -146,11 +146,11 @@ function toggleLiveRefresh() {
     localStorage.setItem('liveRefreshActive', state.isLiveRefreshActive);
     
     if (state.isLiveRefreshActive) {
-        worker.postMessage('start');
-        liveRefreshBtn.textContent = 'Stop Refresh';
+        state.worker.postMessage('start');
+        elements.liveRefreshBtn.textContent = 'Stop Refresh';
     } else {
-        worker.postMessage('stop');
-        liveRefreshBtn.textContent = 'Live Refresh';
+        state.worker.postMessage('stop');
+        elements.liveRefreshBtn.textContent = 'Live Refresh';
     }
 }
 
