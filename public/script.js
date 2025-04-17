@@ -207,7 +207,10 @@ function calculateChange() {
             PutIV: state.deltas.PutIV - state.deltaReferenceValues.PutIV
         };
     }
-    
+    deltaReferenceValues = {
+        ...deltas,
+        timestamp: Date.now()
+    };
     state.lastChangeCalculation = now;
     localStorage.setItem('lastChangeCalculation', state.lastChangeCalculation);
     saveState();
