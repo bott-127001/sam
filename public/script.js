@@ -214,35 +214,39 @@ function calculateChange() {
         return;
     }
 
-    // For first run or after reset
-    if (deltaReferenceValues.timestamp === 0) {
+    // For first run or after reset - check if CallVolume is 0/null/undefined
+    if (!deltaReferenceValues.CallVolume) {
         deltaReferenceValues = {
             ...deltas,
             timestamp: now
         };
+        // Initialize changes to 0 for first run (separate statement)
+        changes = {
+            CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0,
+            CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+        };
     } else {
         // Calculate changes since last reference point
         changes = {
-            CallVolume: deltas.CallVolume - deltaReferenceValues.CallVolume,
-            CallOI: deltas.CallOI - deltaReferenceValues.CallOI,
-            PutVolume: deltas.PutVolume - deltaReferenceValues.PutVolume,
-            PutOI: deltas.PutOI - deltaReferenceValues.PutOI,
-            CallDelta: deltas.CallDelta - deltaReferenceValues.CallDelta,
-            PutDelta: deltas.PutDelta - deltaReferenceValues.PutDelta,
-            CallIV: deltas.CallIV - deltaReferenceValues.CallIV,
-            PutIV: deltas.PutIV - deltaReferenceValues.PutIV
+            CallVolume: (deltas.CallVolume - deltaReferenceValues.CallVolume) || 0,
+            CallOI: (deltas.CallOI - deltaReferenceValues.CallOI) || 0,
+            PutVolume: (deltas.PutVolume - deltaReferenceValues.PutVolume) || 0,
+            PutOI: (deltas.PutOI - deltaReferenceValues.PutOI) || 0,
+            CallDelta: (deltas.CallDelta - deltaReferenceValues.CallDelta) || 0,
+            PutDelta: (deltas.PutDelta - deltaReferenceValues.PutDelta) || 0,
+            CallIV: (deltas.CallIV - deltaReferenceValues.CallIV) || 0,
+            PutIV: (deltas.PutIV - deltaReferenceValues.PutIV) || 0
         };
     }
+    
     deltaReferenceValues = {
-         ...deltas,
-         timestamp: Date.now()
+        ...deltas,
+        timestamp: now
     };
              
-    
     // Update last calculation time
     lastChangeCalculation = now;
     localStorage.setItem('lastChangeCalculation', lastChangeCalculation);
-    console.log("zhala be!!");
     saveState();
 }
 
@@ -307,8 +311,13 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         optionChainTableBody.appendChild(row);
     });
 
-    if (!initialValues.CallVolume) {
-        initialValues = { ...totals};
+    if (!initialValues.CallVolume && !initialValues.PutVolume) {
+        initialValues = { ...totals };
+        deltaReferenceValues = {
+            CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0,
+            CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0,
+            timestamp: Date.now()
+        };
         saveState();
     }
     difference = {
@@ -327,14 +336,14 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     };
 
     deltas = {
-        CallVolume: (difference.CallVolume) / totals.CallVolume * 100,
-        CallOI: (difference.CallOI) / totals.CallOI * 100,
-        CallDelta: (difference.CallDelta) / totals.CallDelta * 100,
-        CallIV: (difference.CallIV) / totals.CallIV * 100,
-        PutVolume: (difference.PutVolume) / totals.PutVolume * 100,
-        PutOI: (difference.PutOI) / totals.PutOI * 100,
-        PutDelta: (difference.PutDelta) / totals.PutDelta * 100,
-        PutIV: (difference.PutIV) / totals.PutIV * 100
+        CallVolume: totals.CallVolume ? (difference.CallVolume / totals.CallVolume * 100) || 0 : 0,
+        CallOI: totals.CallOI ? (difference.CallOI / totals.CallOI * 100) || 0 : 0,
+        CallDelta: totals.CallDelta ? (difference.CallDelta / totals.CallDelta * 100) || 0 : 0,
+        CallIV: totals.CallIV ? (difference.CallIV / totals.CallIV * 100) || 0 : 0,
+        PutVolume: totals.PutVolume ? (difference.PutVolume / totals.PutVolume * 100) || 0 : 0,
+        PutOI: totals.PutOI ? (difference.PutOI / totals.PutOI * 100) || 0 : 0,
+        PutDelta: totals.PutDelta ? (difference.PutDelta / totals.PutDelta * 100) || 0 : 0,
+        PutIV: totals.PutIV ? (difference.PutIV / totals.PutIV * 100) || 0 : 0
     };
 
     calculateChange();
@@ -389,10 +398,10 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
 
     const deltaRow = document.createElement('tr');
     deltaRow.innerHTML = `
-        <td>${deltas.CallVolume.toFixed(3)}, ${changes.CallVolume?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.CallOI.toFixed(3)}, ${changes.CallOI?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.CallIV.toFixed(3)}, ${changes.CallIV?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.CallDelta.toFixed(3)}, ${changes.CallDelta?.toFixed(3) || '0.000'}</td>
+        <td>${(deltas.CallVolume || 0).toFixed(3)}, ${(changes.CallVolume || 0).toFixed(3)}</td>
+        <td>${(deltas.CallOI || 0).toFixed(3)}, ${(changes.CallOI || 0).toFixed(3)}</td>
+        <td>${(deltas.CallIV || 0).toFixed(3)}, ${(changes.CallIV || 0).toFixed(3)}</td>
+        <td>${(deltas.CallDelta || 0).toFixed(3)}, ${(changes.CallDelta || 0).toFixed(3)}</td>
         <td></td>
         <td></td>
         <td></td>
@@ -404,10 +413,10 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         <td></td>
         <td></td>
         <td></td>
-        <td>${deltas.PutDelta.toFixed(3)}, ${changes.PutDelta?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.PutIV.toFixed(3)}, ${changes.PutIV?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.PutOI.toFixed(3)}, ${changes.PutOI?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.PutVolume.toFixed(3)}, ${changes.PutVolume?.toFixed(3) || '0.000'}</td>
+        <td>${(deltas.PutDelta || 0).toFixed(3)}, ${(changes.PutDelta || 0).toFixed(3)}</td>
+        <td>${(deltas.PutIV || 0).toFixed(3)}, ${(changes.PutIV || 0).toFixed(3)}</td>
+        <td>${(deltas.PutOI || 0).toFixed(3)}, ${(changes.PutOI || 0).toFixed(3)}</td>
+        <td>${(deltas.PutVolume || 0).toFixed(3)}, ${(changes.PutVolume || 0).toFixed(3)}</td>
     `;
     optionChainTableBody.appendChild(deltaRow);
 
