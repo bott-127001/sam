@@ -234,6 +234,11 @@ function calculateChange() {
             PutIV: deltas.PutIV - deltaReferenceValues.PutIV
         };
     }
+    state.deltaReferenceValues = {
+         ...state.deltas,
+         timestamp: Date.now()
+    };
+             
     
     // Update last calculation time
     lastChangeCalculation = now;
