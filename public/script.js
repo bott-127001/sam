@@ -90,7 +90,6 @@ resetBtn.addEventListener('click', () => {
         showToast('Dashboard has been reset to initial state');
     }
     });
-}
 
 function showToast(message) {
     // Simple toast implementation
