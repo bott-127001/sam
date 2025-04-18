@@ -35,18 +35,6 @@ const state = {
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
-    const now = new Date();
-    const resetTime = new Date();
-    resetTime.setHours(18, 0, 0, 0);
-
-    if (now > resetTime) {
-        const lastReset = localStorage.getItem('lastDailyReset');
-        if (!lastReset || new Date(lastReset) < resetTime) {
-            localStorage.clear();
-            localStorage.setItem('lastDailyReset', resetTime.toISOString());
-        }
-    }
-
     // Restore inputs
     elements.accessTokenInput.value = localStorage.getItem('accessToken') || '';
     elements.authCodeInput.value = localStorage.getItem('authCode') || '';
