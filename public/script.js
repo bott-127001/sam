@@ -171,7 +171,10 @@ function clearDashboard() {
     };
     
     state.changes = state.totals = state.difference = {...state.initialValues};
-    state.deltaReferenceValues = {...state.deltas, state.deltaReferenceValues.timestamp: 0};
+    state.deltaReferenceValues = {
+        ...state.deltas,
+        timestamp: 0
+    };
     
     // 3. Reset UI
     elements.optionChainTableBody.innerHTML = '';
@@ -194,7 +197,10 @@ function calculateChange() {
     if (now - state.lastChangeCalculation < state.CHANGE_INTERVAL) return;
 
     if (!state.deltaReferenceValues.CallVolume) {
-        state.deltaReferenceValues = { ...state.deltas, timestamp: now };
+        state.deltaReferenceValues = { 
+            ...state.deltas,
+            timestamp: now
+        };
     } else {
         state.changes = {
             CallVolume: state.deltas.CallVolume - state.deltaReferenceValues.CallVolume,
@@ -207,9 +213,10 @@ function calculateChange() {
             PutIV: state.deltas.PutIV - state.deltaReferenceValues.PutIV
         };
     }
-       state.deltaReferenceValues = {
+    
+    state.deltaReferenceValues = {
         ...state.deltas,
-        state.deltaReferenceValues.timestamp: now
+        timestamp: now
     };
     
     state.lastChangeCalculation = now;
