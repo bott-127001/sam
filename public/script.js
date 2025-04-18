@@ -233,8 +233,8 @@ function calculateChange() {
             PutIV: deltas.PutIV - deltaReferenceValues.PutIV
         };
     }
-    state.deltaReferenceValues = {
-         ...state.deltas,
+    deltaReferenceValues = {
+         ...deltas,
          timestamp: Date.now()
     };
              
