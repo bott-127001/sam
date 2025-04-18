@@ -1,4 +1,3 @@
-// Optimized DOM elements cache
 const elements = {
     getDataBtn: document.getElementById('getDataBtn'),
     liveRefreshBtn: document.getElementById('liveRefreshBtn'),
@@ -55,12 +54,6 @@ function init() {
     // Setup worker
     if (state.worker) {
         state.worker.onmessage = e => e.data === 'fetch' && fetchData();
-        state.worker.onerror = (error) => {
-            console.error('Worker error:', error);
-            showToast('Background process error occurred');
-            state.isLiveRefreshActive = false;
-            elements.liveRefreshBtn.textContent = 'Live Refresh';
-        };
         if (state.isLiveRefreshActive) {
             state.worker.postMessage('start');
             elements.liveRefreshBtn.textContent = 'Stop Refresh';
@@ -158,7 +151,7 @@ async function fetchData() {
         updateOptionChainData(data.data, underlyingSpotPrice);
     } catch (error) {
         console.error('Error fetching data:', error);
-        showToast(`Error: ${error.message}`);
+        alert('Fetch error: ' + error.message);
     }
 }
 
@@ -209,6 +202,7 @@ function clearDashboard() {
     
     console.log('Dashboard fully cleared');
 }
+
 function calculateChange() {
     const now = Date.now();
     if (now - state.lastChangeCalculation < state.CHANGE_INTERVAL) return;
@@ -415,53 +409,43 @@ function calculateDifferences() {
 
 function calculateDeltas() {
     state.deltas = {
-        CallVolume: state.totals.CallVolume ? (state.difference.CallVolume / state.totals.CallVolume * 100) : 0,
-        CallOI: state.totals.CallOI ? (state.difference.CallOI / state.totals.CallOI * 100) : 0,
-        CallDelta: state.totals.CallDelta ? (state.difference.CallDelta / state.totals.CallDelta * 100) : 0,
-        CallIV: state.totals.CallIV ? (state.difference.CallIV / state.totals.CallIV * 100) : 0,
-        PutVolume: state.totals.PutVolume ? (state.difference.PutVolume / state.totals.PutVolume * 100) : 0,
-        PutOI: state.totals.PutOI ? (state.difference.PutOI / state.totals.PutOI * 100) : 0,
-        PutDelta: state.totals.PutDelta ? (state.difference.PutDelta / state.totals.PutDelta * 100) : 0,
-        PutIV: state.totals.PutIV ? (state.difference.PutIV / state.totals.PutIV * 100) : 0
+        CallVolume: (state.difference.CallVolume / state.totals.CallVolume * 100),
+        CallOI: (state.difference.CallOI / state.totals.CallOI * 100),
+        CallDelta: (state.difference.CallDelta / state.totals.CallDelta * 100),
+        CallIV: (state.difference.CallIV / state.totals.CallIV * 100),
+        PutVolume: (state.difference.PutVolume / state.totals.PutVolume * 100),
+        PutOI: (state.difference.PutOI / state.totals.PutOI * 100),
+        PutDelta: (state.difference.PutDelta / state.totals.PutDelta * 100),
+        PutIV: (state.difference.PutIV / state.totals.PutIV * 100)
     };
 }
 
 function saveState() {
-    try {
-        const savedState = {
-            totals: state.totals,
-            initialValues: state.initialValues,
-            deltas: state.deltas,
-            changes: state.changes,
-            difference: state.difference,
-            deltaReferenceValues: state.deltaReferenceValues,
-            expiryDate: elements.expiryDateInput.value,
-            lastChangeCalculation: state.lastChangeCalculation
-        };
-        localStorage.setItem('optionChainState', JSON.stringify(savedState));
-    } catch (error) {
-        console.error('Error saving state:', error);
-        showToast('Error saving application state');
-    }
+    const savedState = {
+        totals: state.totals,
+        initialValues: state.initialValues,
+        deltas: state.deltas,
+        changes: state.changes,
+        difference: state.difference,
+        deltaReferenceValues: state.deltaReferenceValues,
+        expiryDate: elements.expiryDateInput.value,
+        lastChangeCalculation: state.lastChangeCalculation
+    };
+    localStorage.setItem('optionChainState', JSON.stringify(savedState));
 }
 
 function loadState() {
-    try {
-        const savedState = JSON.parse(localStorage.getItem('optionChainState')) || {};
-        
-        state.totals = savedState.totals || { ...state.initialValues };
-        state.initialValues = savedState.initialValues || { ...state.initialValues };
-        state.deltas = savedState.deltas || { ...state.deltas };
-        state.changes = savedState.changes || { ...state.changes };
-        state.difference = savedState.difference || { ...state.difference };
-        state.deltaReferenceValues = savedState.deltaReferenceValues || { ...state.deltaReferenceValues };
-        state.lastChangeCalculation = savedState.lastChangeCalculation || 0;
-        
-        elements.expiryDateInput.value = savedState.expiryDate || '';
-    } catch (error) {
-        console.error('Error loading state:', error);
-        showToast('Error loading saved state');
-    }
+    const savedState = JSON.parse(localStorage.getItem('optionChainState')) || {};
+    
+    state.totals = savedState.totals || { ...state.initialValues };
+    state.initialValues = savedState.initialValues || { ...state.initialValues };
+    state.deltas = savedState.deltas || { ...state.deltas };
+    state.changes = savedState.changes || { ...state.changes };
+    state.difference = savedState.difference || { ...state.difference };
+    state.deltaReferenceValues = savedState.deltaReferenceValues || { ...state.deltaReferenceValues };
+    state.lastChangeCalculation = savedState.lastChangeCalculation || 0;
+    
+    elements.expiryDateInput.value = savedState.expiryDate || '';
 }
 // Cleanup on exit
 window.addEventListener('beforeunload', () => {
