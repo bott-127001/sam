@@ -1,19 +1,6 @@
 //money making mahchine (source code)
 document.addEventListener('DOMContentLoaded', () => {
-    const now = new Date();
-    const resetTime = new Date();
-    resetTime.setHours(18, 0, 0, 0); // Set target time to today's 18:00 (6 PM)
-
-    if (now > resetTime) {
-        const lastReset = localStorage.getItem('lastDailyReset');
-        const lastResetDate = lastReset ? new Date(lastReset) : null;
-
-        if (!lastResetDate || lastResetDate < resetTime) {
-            localStorage.clear();
-            localStorage.setItem('lastDailyReset', resetTime.toISOString());
-        }
-    }
-
+    
     // Restore input fields
     accessTokenInput.value = localStorage.getItem('accessToken') || '';
     authCodeInput.value = localStorage.getItem('authCode') || '';
@@ -41,6 +28,7 @@ const authCodeInput = document.getElementById('authCode');
 const sendAuthCodeBtn = document.getElementById('sendAuthCodeBtn');
 const optionChainTableBody = document.getElementById('optionChainTableBody');
 const expiryDateInput = document.getElementById('expiryDate');
+const resetBtn = document.getElementById('resetBtn');
 
 let worker;
 let calculateChangeInterval;
@@ -95,6 +83,32 @@ getDataBtn.addEventListener('click', fetchData);
 liveRefreshBtn.addEventListener('click', toggleLiveRefresh);
 loginBtn.addEventListener('click', startAuthentication);
 sendAuthCodeBtn.addEventListener('click', submitAuthCode);
+resetBtn.addEventListener('click', () => {
+    if (confirm('This will reset ALL calculations and data. Proceed?')) {
+        clearDashboard();
+        // Optional: Show visual feedback
+        showToast('Dashboard has been reset to initial state');
+    }
+    });
+}
+
+function showToast(message) {
+    // Simple toast implementation
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.right = '20px';
+    toast.style.padding = '10px 20px';
+    toast.style.background = '#4CAF50';
+    toast.style.color = 'white';
+    toast.style.borderRadius = '4px';
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 3000);
+}
+
+
 
 function startAuthentication() {
     const authUrl = '/login';
@@ -150,32 +164,48 @@ async function fetchData() {
 }
 
 function toggleLiveRefresh() {
-    if (isLiveRefreshActive) {
-        worker.postMessage('stop');
-        liveRefreshBtn.textContent = 'Live Refresh';
-        localStorage.removeItem('rawOptionChain');
-        localStorage.removeItem('lastUnderlyingPrice');
-        localStorage.removeItem('optionChainState');
-        localStorage.removeItem('calculateChangeLastRun');
-        localStorage.removeItem('lastChangeCalculation');
-        resetInitialValues();
-        optionChainTableBody.innerHTML = '';
-    } else {
-        worker.postMessage('start');
-        liveRefreshBtn.textContent = 'Stop Refresh';
-    }
-
     isLiveRefreshActive = !isLiveRefreshActive;
     localStorage.setItem('liveRefreshActive', isLiveRefreshActive);
+    
+    if (isLiveRefreshActive) {
+        worker.postMessage('start');
+        liveRefreshBtn.textContent = 'Stop Refresh';
+    } else {
+        worker.postMessage('stop');
+        liveRefreshBtn.textContent = 'Live Refresh';
+    }
 }
 
-function resetInitialValues() {
-    initialValues = {
+function clearDashboard() {
+    // 1. Clear ALL relevant localStorage data
+    localStorage.clear();
+    
+    // 2. Reset ALL state variables
+    initialValues = { 
         CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
         PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0,
-        price: 0
+        price: 0 
     };
+
+    changes = deltas = totals = difference = {...initialValues};
+    deltaReferenceValues = {...deltas, timestamp: 0};
+    
+    // 3. Reset UI
+    optionChainTableBody.innerHTML = '';
+    accessTokenInput.value =''; // Preserve token
+    authCodeInput.value = '';
+    expiryDateInput.value = '';
+    
+    // 4. Stop live refresh if active
+    if (isLiveRefreshActive && worker) {
+        worker.postMessage('stop');
+        liveRefreshBtn.textContent = 'Live Refresh';
+        isLiveRefreshActive = false;
+    }
+    
+    console.log('Dashboard fully cleared');
 }
+
 
 function calculateChange() {
     const now = Date.now();
