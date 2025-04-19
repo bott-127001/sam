@@ -1,19 +1,5 @@
 //money making mahchine (source code)
 document.addEventListener('DOMContentLoaded', () => {
-    const now = new Date();
-    const resetTime = new Date();
-    resetTime.setHours(18, 0, 0, 0); // Set target time to today's 18:00 (6 PM)
-
-    if (now > resetTime) {
-        const lastReset = localStorage.getItem('lastDailyReset');
-        const lastResetDate = lastReset ? new Date(lastReset) : null;
-
-        if (!lastResetDate || lastResetDate < resetTime) {
-            localStorage.clear();
-            localStorage.setItem('lastDailyReset', resetTime.toISOString());
-        }
-    }
-
     // Restore input fields
     accessTokenInput.value = localStorage.getItem('accessToken') || '';
     authCodeInput.value = localStorage.getItem('authCode') || '';
@@ -41,9 +27,9 @@ const authCodeInput = document.getElementById('authCode');
 const sendAuthCodeBtn = document.getElementById('sendAuthCodeBtn');
 const optionChainTableBody = document.getElementById('optionChainTableBody');
 const expiryDateInput = document.getElementById('expiryDate');
+const resetBtn = document.getElementById('resetBtn');
 
 let worker;
-let calculateChangeInterval;
 let isLiveRefreshActive = localStorage.getItem('liveRefreshActive') === 'true';
 const CHANGE_INTERVAL = 900000; // 15 minutes in milliseconds
 let lastChangeCalculation = localStorage.getItem('lastChangeCalculation') || 0;
@@ -95,6 +81,7 @@ getDataBtn.addEventListener('click', fetchData);
 liveRefreshBtn.addEventListener('click', toggleLiveRefresh);
 loginBtn.addEventListener('click', startAuthentication);
 sendAuthCodeBtn.addEventListener('click', submitAuthCode);
+resetBtn.addEventListener('click', resetAll);
 
 function startAuthentication() {
     const authUrl = '/login';
@@ -149,17 +136,47 @@ async function fetchData() {
     }
 }
 
+function resetAll() {
+    // Stop live refresh if active
+    if (isLiveRefreshActive) {
+        worker.postMessage('stop');
+        liveRefreshBtn.textContent = 'Live Refresh';
+        isLiveRefreshActive = false;
+    }
+
+    // Clear all localStorage
+    localStorage.clear();
+
+    // Reset all global variables
+    initialValues = {
+        CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
+        PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0,
+        price: 0
+    };
+    totals = { ...initialValues };
+    deltas = {
+        CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
+        CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+    };
+    changes = { ...deltas };
+    difference = { ...initialValues };
+    deltaReferenceValues = { ...deltas, timestamp: 0 };
+    lastChangeCalculation = 0;
+
+    // Clear HTML elements
+    optionChainTableBody.innerHTML = '';
+    accessTokenInput.value = '';
+    authCodeInput.value = '';
+    expiryDateInput.value = '';
+
+    // Update UI state
+    liveRefreshBtn.textContent = 'Live Refresh';
+} 
+
 function toggleLiveRefresh() {
     if (isLiveRefreshActive) {
         worker.postMessage('stop');
         liveRefreshBtn.textContent = 'Live Refresh';
-        localStorage.removeItem('rawOptionChain');
-        localStorage.removeItem('lastUnderlyingPrice');
-        localStorage.removeItem('optionChainState');
-        localStorage.removeItem('calculateChangeLastRun');
-        localStorage.removeItem('lastChangeCalculation');
-        resetInitialValues();
-        optionChainTableBody.innerHTML = '';
     } else {
         worker.postMessage('start');
         liveRefreshBtn.textContent = 'Stop Refresh';
@@ -167,14 +184,6 @@ function toggleLiveRefresh() {
 
     isLiveRefreshActive = !isLiveRefreshActive;
     localStorage.setItem('liveRefreshActive', isLiveRefreshActive);
-}
-
-function resetInitialValues() {
-    initialValues = {
-        CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
-        PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0,
-        price: 0
-    };
 }
 
 function calculateChange() {
@@ -389,8 +398,6 @@ function saveState() {
         difference,
         deltaReferenceValues,
         expiryDate: document.getElementById('expiryDate').value,
-        calculateChangeLastRun: localStorage.getItem('calculateChangeLastRun'),
-        calculateChangeTimerActive: localStorage.getItem('calculateChangeTimerActive'),
         lastChangeCalculation: lastChangeCalculation
     };
 
@@ -414,7 +421,6 @@ function loadState() {
     }
 
     document.getElementById('expiryDate').value = savedState.expiryDate;
-    calculateChangeTimerActive = savedState.calculateChangeTimerActive || false;
 }
 
 window.addEventListener('beforeunload', () => {
