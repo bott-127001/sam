@@ -93,19 +93,44 @@ function downloadTableSnapshot() {
     const script = document.createElement('script');
     script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
     script.onload = function() {
-        // Once html2canvas is loaded, capture the table
+        // Get the table element
         const table = document.querySelector('#optionChainData');
+        
+        // Store original styles
+        const originalStyles = {
+            width: table.style.width,
+            maxWidth: table.style.maxWidth,
+            overflow: table.style.overflow
+        };
+
+        // Apply temporary styles for capture
+        table.style.width = 'auto';
+        table.style.maxWidth = 'none';
+        table.style.overflow = 'visible';
+
+        // Capture the table with adjusted options
         html2canvas(table, {
             backgroundColor: '#ffffff',
-            scale: 2  // For better quality
+            scale: 2,
+            width: table.scrollWidth, // Capture full width
+            height: table.scrollHeight, // Capture full height
+            windowWidth: table.scrollWidth, // Consider full width for rendering
+            logging: false,
+            useCORS: true,
+            allowTaint: true
         }).then(canvas => {
             // Convert canvas to image and trigger download
-            const image = canvas.toDataURL('image/png');
+            const image = canvas.toDataURL('image/png', 1.0);
             const link = document.createElement('a');
             const timestamp = new Date().toLocaleString().replace(/[/:]/g, '-');
             link.download = `option-chain-${timestamp}.png`;
             link.href = image;
             link.click();
+
+            // Restore original styles
+            table.style.width = originalStyles.width;
+            table.style.maxWidth = originalStyles.maxWidth;
+            table.style.overflow = originalStyles.overflow;
 
             // Reset button state
             btn.textContent = originalText;
@@ -113,6 +138,12 @@ function downloadTableSnapshot() {
         }).catch(error => {
             console.error('Error generating image:', error);
             alert('Error generating image. Please try again.');
+            
+            // Restore original styles
+            table.style.width = originalStyles.width;
+            table.style.maxWidth = originalStyles.maxWidth;
+            table.style.overflow = originalStyles.overflow;
+
             btn.textContent = originalText;
             btn.disabled = false;
         });
