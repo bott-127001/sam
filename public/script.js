@@ -34,6 +34,32 @@ let isLiveRefreshActive = localStorage.getItem('liveRefreshActive') === 'true';
 const CHANGE_INTERVAL = 900000; // 15 minutes in milliseconds
 let lastChangeCalculation = localStorage.getItem('lastChangeCalculation') || 0;
 
+// Initialize data structures with default values
+const defaultValues = {
+    CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
+    PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0,
+    price: 0
+};
+
+// Use a single object to store all data states
+let dataState = {
+    initialValues: { ...defaultValues },
+    totals: { ...defaultValues },
+    deltas: {
+        CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
+        CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+    },
+    changes: {
+        CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
+        CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+    },
+    difference: { ...defaultValues },
+    deltaReferenceValues: {
+        CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
+        CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0, timestamp: 0
+    }
+};
+
 if (window.Worker) {
     worker = new Worker('worker.js');
 
@@ -49,39 +75,55 @@ if (window.Worker) {
     }
 }
 
-let initialValues = {
-    CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
-    PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0,
-    price: 0
-};
-
-let deltas = {
-    CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
-};
-
-let changes = {
-    CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
-};
-
-let totals = {
-    CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
-    PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0
-};
-
-let difference = {
-    CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
-    PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0 
-};
-
-let deltaReferenceValues = {
-    CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0, timestamp: 0
-};
-
 getDataBtn.addEventListener('click', fetchData);
 liveRefreshBtn.addEventListener('click', toggleLiveRefresh);
 loginBtn.addEventListener('click', startAuthentication);
 sendAuthCodeBtn.addEventListener('click', submitAuthCode);
 resetBtn.addEventListener('click', resetAll);
+document.getElementById('downloadSnapshotBtn').addEventListener('click', downloadTableSnapshot);
+
+function downloadTableSnapshot() {
+    // Show loading indicator
+    const btn = document.getElementById('downloadSnapshotBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Downloading...';
+    btn.disabled = true;
+
+    // Import html2canvas dynamically
+    const script = document.createElement('script');
+    script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+    script.onload = function() {
+        // Once html2canvas is loaded, capture the table
+        const table = document.querySelector('#optionChainData');
+        html2canvas(table, {
+            backgroundColor: '#ffffff',
+            scale: 2  // For better quality
+        }).then(canvas => {
+            // Convert canvas to image and trigger download
+            const image = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            const timestamp = new Date().toLocaleString().replace(/[/:]/g, '-');
+            link.download = `option-chain-${timestamp}.png`;
+            link.href = image;
+            link.click();
+
+            // Reset button state
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }).catch(error => {
+            console.error('Error generating image:', error);
+            alert('Error generating image. Please try again.');
+            btn.textContent = originalText;
+            btn.disabled = false;
+        });
+    };
+    script.onerror = function() {
+        alert('Failed to load required library. Please check your internet connection.');
+        btn.textContent = originalText;
+        btn.disabled = false;
+    };
+    document.head.appendChild(script);
+}
 
 function startAuthentication() {
     const authUrl = '/login';
@@ -147,20 +189,24 @@ function resetAll() {
     // Clear all localStorage
     localStorage.clear();
 
-    // Reset all global variables
-    initialValues = {
-        CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
-        PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0,
-        price: 0
+    // Reset all data state
+    dataState = {
+        initialValues: { ...defaultValues },
+        totals: { ...defaultValues },
+        deltas: {
+            CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
+            CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+        },
+        changes: {
+            CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
+            CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+        },
+        difference: { ...defaultValues },
+        deltaReferenceValues: {
+            CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
+            CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0, timestamp: 0
+        }
     };
-    totals = { ...initialValues };
-    deltas = {
-        CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
-        CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
-    };
-    changes = { ...deltas };
-    difference = { ...initialValues };
-    deltaReferenceValues = { ...deltas, timestamp: 0 };
     lastChangeCalculation = 0;
 
     // Clear HTML elements
@@ -195,22 +241,22 @@ function calculateChange() {
     }
 
     // For first run or after reset
-    if (deltaReferenceValues.timestamp === 0) {
-        deltaReferenceValues = {
-            ...deltas,
+    if (dataState.deltaReferenceValues.timestamp === 0) {
+        dataState.deltaReferenceValues = {
+            ...dataState.deltas,
             timestamp: now
         };
     } else {
         // Calculate changes since last reference point
-        changes = {
-            CallVolume: deltas.CallVolume - deltaReferenceValues.CallVolume,
-            CallOI: deltas.CallOI - deltaReferenceValues.CallOI,
-            PutVolume: deltas.PutVolume - deltaReferenceValues.PutVolume,
-            PutOI: deltas.PutOI - deltaReferenceValues.PutOI,
-            CallDelta: deltas.CallDelta - deltaReferenceValues.CallDelta,
-            PutDelta: deltas.PutDelta - deltaReferenceValues.PutDelta,
-            CallIV: deltas.CallIV - deltaReferenceValues.CallIV,
-            PutIV: deltas.PutIV - deltaReferenceValues.PutIV
+        dataState.changes = {
+            CallVolume: dataState.deltas.CallVolume - dataState.deltaReferenceValues.CallVolume,
+            CallOI: dataState.deltas.CallOI - dataState.deltaReferenceValues.CallOI,
+            PutVolume: dataState.deltas.PutVolume - dataState.deltaReferenceValues.PutVolume,
+            PutOI: dataState.deltas.PutOI - dataState.deltaReferenceValues.PutOI,
+            CallDelta: dataState.deltas.CallDelta - dataState.deltaReferenceValues.CallDelta,
+            PutDelta: dataState.deltas.PutDelta - dataState.deltaReferenceValues.PutDelta,
+            CallIV: dataState.deltas.CallIV - dataState.deltaReferenceValues.CallIV,
+            PutIV: dataState.deltas.PutIV - dataState.deltaReferenceValues.PutIV
         };
     }
     
@@ -223,40 +269,54 @@ function calculateChange() {
 
 function updateOptionChainData(optionChain, underlyingSpotPrice) {
     const currentExpiryDate = document.getElementById('expiryDate').value;
+    
+    // Clear the table body
     optionChainTableBody.innerHTML = '';
     
+    // Load saved state
     loadState();
     document.getElementById('expiryDate').value = currentExpiryDate;
     
-    totals = {
-    CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallIV: 0, CallDelta: 0,
-    PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutIV: 0, PutDelta: 0
-    };
+    // Reset totals
+    dataState.totals = { ...defaultValues };
 
+    // Create a document fragment for better performance
+    const fragment = document.createDocumentFragment();
+    
+    // Process all option chain data in a single pass
     optionChain.forEach(item => {
         const strikePrice = item.strike_price;
         const isATM = strikePrice === underlyingSpotPrice;
         const isOTMCall = strikePrice > underlyingSpotPrice;
         const isOTMPut = strikePrice < underlyingSpotPrice;
-
+        
+        // Process call options
         if (isATM || isOTMCall) {
-            totals.CallVolume += item.call_options.market_data.volume;
-            totals.CallOI += item.call_options.market_data.oi;
-            totals.CallAskQty += item.call_options.market_data.ask_qty;
-            totals.CallBidQty += item.call_options.market_data.bid_qty;
-            totals.CallDelta += item.call_options.option_greeks.delta;
-            totals.CallIV += item.call_options.option_greeks.iv;
+            const callData = item.call_options.market_data;
+            const callGreeks = item.call_options.option_greeks;
+            
+            dataState.totals.CallVolume += callData.volume;
+            dataState.totals.CallOI += callData.oi;
+            dataState.totals.CallAskQty += callData.ask_qty;
+            dataState.totals.CallBidQty += callData.bid_qty;
+            dataState.totals.CallDelta += callGreeks.delta;
+            dataState.totals.CallIV += callGreeks.iv;
         }
 
+        // Process put options
         if (isATM || isOTMPut) {
-            totals.PutVolume += item.put_options.market_data.volume;
-            totals.PutOI += item.put_options.market_data.oi;
-            totals.PutAskQty += item.put_options.market_data.ask_qty;
-            totals.PutBidQty += item.put_options.market_data.bid_qty;
-            totals.PutDelta += item.put_options.option_greeks.delta;
-            totals.PutIV += item.put_options.option_greeks.iv;
+            const putData = item.put_options.market_data;
+            const putGreeks = item.put_options.option_greeks;
+            
+            dataState.totals.PutVolume += putData.volume;
+            dataState.totals.PutOI += putData.oi;
+            dataState.totals.PutAskQty += putData.ask_qty;
+            dataState.totals.PutBidQty += putData.bid_qty;
+            dataState.totals.PutDelta += putGreeks.delta;
+            dataState.totals.PutIV += putGreeks.iv;
         }
 
+        // Create row for the table
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${item.call_options.market_data.volume}</td>
@@ -279,95 +339,109 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
             <td>${item.put_options.market_data.oi}</td>
             <td>${item.put_options.market_data.volume}</td>
         `;
-        optionChainTableBody.appendChild(row);
+        fragment.appendChild(row);
     });
 
-    if (!initialValues.CallVolume) {
-        initialValues = { ...totals};
+    // Append all rows at once
+    optionChainTableBody.appendChild(fragment);
+
+    // Set initial values if not already set
+    if (!dataState.initialValues.CallVolume) {
+        dataState.initialValues = { ...dataState.totals };
         saveState();
     }
-    difference = {
-        CallVolume: totals.CallVolume - initialValues.CallVolume,
-        CallOI: totals.CallOI - initialValues.CallOI, 
-        CallAskQty: totals.CallAskQty - initialValues.CallAskQty,
-        CallBidQty: totals.CallBidQty - initialValues.CallBidQty,
-        CallIV: totals.CallIV - initialValues.CallIV,
-        CallDelta: totals.CallDelta - initialValues.CallDelta,
-        PutVolume: totals.PutVolume - initialValues.PutVolume,
-        PutOI: totals.PutOI - initialValues.PutOI,
-        PutAskQty: totals.PutAskQty - initialValues.PutAskQty,
-        PutBidQty: totals.PutBidQty - initialValues.PutBidQty,
-        PutIV: totals.PutIV - initialValues.PutIV,
-        PutDelta: totals.PutDelta - initialValues.PutDelta  
+
+    // Calculate differences
+    dataState.difference = {
+        CallVolume: dataState.totals.CallVolume - dataState.initialValues.CallVolume,
+        CallOI: dataState.totals.CallOI - dataState.initialValues.CallOI, 
+        CallAskQty: dataState.totals.CallAskQty - dataState.initialValues.CallAskQty,
+        CallBidQty: dataState.totals.CallBidQty - dataState.initialValues.CallBidQty,
+        CallIV: dataState.totals.CallIV - dataState.initialValues.CallIV,
+        CallDelta: dataState.totals.CallDelta - dataState.initialValues.CallDelta,
+        PutVolume: dataState.totals.PutVolume - dataState.initialValues.PutVolume,
+        PutOI: dataState.totals.PutOI - dataState.initialValues.PutOI,
+        PutAskQty: dataState.totals.PutAskQty - dataState.initialValues.PutAskQty,
+        PutBidQty: dataState.totals.PutBidQty - dataState.initialValues.PutBidQty,
+        PutIV: dataState.totals.PutIV - dataState.initialValues.PutIV,
+        PutDelta: dataState.totals.PutDelta - dataState.initialValues.PutDelta  
     };
 
-    deltas = {
-        CallVolume: (difference.CallVolume) / totals.CallVolume * 100,
-        CallOI: (difference.CallOI) / totals.CallOI * 100,
-        CallDelta: (difference.CallDelta) / totals.CallDelta * 100,
-        CallIV: (difference.CallIV) / totals.CallIV * 100,
-        PutVolume: (difference.PutVolume) / totals.PutVolume * 100,
-        PutOI: (difference.PutOI) / totals.PutOI * 100,
-        PutDelta: (difference.PutDelta) / totals.PutDelta * 100,
-        PutIV: (difference.PutIV) / totals.PutIV * 100
+    // Calculate deltas (percentage changes)
+    dataState.deltas = {
+        CallVolume: (dataState.difference.CallVolume) / dataState.totals.CallVolume * 100,
+        CallOI: (dataState.difference.CallOI) / dataState.totals.CallOI * 100,
+        CallDelta: (dataState.difference.CallDelta) / dataState.totals.CallDelta * 100,
+        CallIV: (dataState.difference.CallIV) / dataState.totals.CallIV * 100,
+        PutVolume: (dataState.difference.PutVolume) / dataState.totals.PutVolume * 100,
+        PutOI: (dataState.difference.PutOI) / dataState.totals.PutOI * 100,
+        PutDelta: (dataState.difference.PutDelta) / dataState.totals.PutDelta * 100,
+        PutIV: (dataState.difference.PutIV) / dataState.totals.PutIV * 100
     };
 
+    // Calculate changes
     calculateChange();
 
+    // Create summary rows
+    const summaryFragment = document.createDocumentFragment();
+    
+    // Total row
     const totalRow = document.createElement('tr');
     totalRow.innerHTML = `
-        <td>${totals.CallVolume}</td>
-        <td>${totals.CallOI}</td>
-        <td>${totals.CallIV.toFixed(2)}</td>
-        <td>${totals.CallDelta.toFixed(2)}</td>
+        <td>${dataState.totals.CallVolume}</td>
+        <td>${dataState.totals.CallOI}</td>
+        <td>${dataState.totals.CallIV.toFixed(2)}</td>
+        <td>${dataState.totals.CallDelta.toFixed(2)}</td>
         <td></td>
-        <td>${totals.CallBidQty}</td>
-        <td></td>
-        <td></td>
-        <td>${totals.CallAskQty}</td>
-        <td></td>
-        <td>${totals.PutAskQty}</td>
+        <td>${dataState.totals.CallBidQty}</td>
         <td></td>
         <td></td>
-        <td>${totals.PutBidQty}</td>
+        <td>${dataState.totals.CallAskQty}</td>
         <td></td>
-        <td>${totals.PutDelta.toFixed(2)}</td>
-        <td>${totals.PutIV.toFixed(2)}</td>
-        <td>${totals.PutOI}</td>
-        <td>${totals.PutVolume}</td>
+        <td>${dataState.totals.PutAskQty}</td>
+        <td></td>
+        <td></td>
+        <td>${dataState.totals.PutBidQty}</td>
+        <td></td>
+        <td>${dataState.totals.PutDelta.toFixed(2)}</td>
+        <td>${dataState.totals.PutIV.toFixed(2)}</td>
+        <td>${dataState.totals.PutOI}</td>
+        <td>${dataState.totals.PutVolume}</td>
     `;
-    optionChainTableBody.appendChild(totalRow);
+    summaryFragment.appendChild(totalRow);
 
+    // Difference row
     const diffRow = document.createElement('tr');
     diffRow.innerHTML = `
-        <td>${difference?.CallVolume ?? 0}</td>
-        <td>${difference?.CallOI ?? 0}</td>
-        <td>${(difference?.CallIV ?? 0).toFixed(4)}</td>
-        <td>${(difference?.CallDelta ?? 0).toFixed(4)}</td>
+        <td>${dataState.difference?.CallVolume ?? 0}</td>
+        <td>${dataState.difference?.CallOI ?? 0}</td>
+        <td>${(dataState.difference?.CallIV ?? 0).toFixed(4)}</td>
+        <td>${(dataState.difference?.CallDelta ?? 0).toFixed(4)}</td>
         <td></td>
-        <td>${difference?.CallBidQty ?? 0}</td>
-        <td></td>
-        <td></td>
-        <td>${difference?.CallAskQty ?? 0}</td>
-        <td></td>
-        <td>${difference?.PutAskQty ?? 0}</td>
+        <td>${dataState.difference?.CallBidQty ?? 0}</td>
         <td></td>
         <td></td>
-        <td>${difference?.PutBidQty ?? 0}</td>
+        <td>${dataState.difference?.CallAskQty ?? 0}</td>
         <td></td>
-        <td>${(difference?.PutDelta ?? 0).toFixed(4)}</td>
-        <td>${(difference?.PutIV ?? 0).toFixed(4)}</td>
-        <td>${difference?.PutOI ?? 0}</td>
-        <td>${difference?.PutVolume ?? 0}</td>
+        <td>${dataState.difference?.PutAskQty ?? 0}</td>
+        <td></td>
+        <td></td>
+        <td>${dataState.difference?.PutBidQty ?? 0}</td>
+        <td></td>
+        <td>${(dataState.difference?.PutDelta ?? 0).toFixed(4)}</td>
+        <td>${(dataState.difference?.PutIV ?? 0).toFixed(4)}</td>
+        <td>${dataState.difference?.PutOI ?? 0}</td>
+        <td>${dataState.difference?.PutVolume ?? 0}</td>
     `;
-    optionChainTableBody.appendChild(diffRow);
+    summaryFragment.appendChild(diffRow);
 
+    // Delta row
     const deltaRow = document.createElement('tr');
     deltaRow.innerHTML = `
-        <td>${deltas.CallVolume.toFixed(3)}, ${changes.CallVolume?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.CallOI.toFixed(3)}, ${changes.CallOI?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.CallIV.toFixed(3)}, ${changes.CallIV?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.CallDelta.toFixed(3)}, ${changes.CallDelta?.toFixed(3) || '0.000'}</td>
+        <td>${dataState.deltas.CallVolume.toFixed(3)}, ${dataState.changes.CallVolume?.toFixed(3) || '0.000'}</td>
+        <td>${dataState.deltas.CallOI.toFixed(3)}, ${dataState.changes.CallOI?.toFixed(3) || '0.000'}</td>
+        <td>${dataState.deltas.CallIV.toFixed(3)}, ${dataState.changes.CallIV?.toFixed(3) || '0.000'}</td>
+        <td>${dataState.deltas.CallDelta.toFixed(3)}, ${dataState.changes.CallDelta?.toFixed(3) || '0.000'}</td>
         <td></td>
         <td></td>
         <td></td>
@@ -379,24 +453,23 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         <td></td>
         <td></td>
         <td></td>
-        <td>${deltas.PutDelta.toFixed(3)}, ${changes.PutDelta?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.PutIV.toFixed(3)}, ${changes.PutIV?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.PutOI.toFixed(3)}, ${changes.PutOI?.toFixed(3) || '0.000'}</td>
-        <td>${deltas.PutVolume.toFixed(3)}, ${changes.PutVolume?.toFixed(3) || '0.000'}</td>
+        <td>${dataState.deltas.PutDelta.toFixed(3)}, ${dataState.changes.PutDelta?.toFixed(3) || '0.000'}</td>
+        <td>${dataState.deltas.PutIV.toFixed(3)}, ${dataState.changes.PutIV?.toFixed(3) || '0.000'}</td>
+        <td>${dataState.deltas.PutOI.toFixed(3)}, ${dataState.changes.PutOI?.toFixed(3) || '0.000'}</td>
+        <td>${dataState.deltas.PutVolume.toFixed(3)}, ${dataState.changes.PutVolume?.toFixed(3) || '0.000'}</td>
     `;
-    optionChainTableBody.appendChild(deltaRow);
+    summaryFragment.appendChild(deltaRow);
 
+    // Append all summary rows at once
+    optionChainTableBody.appendChild(summaryFragment);
+
+    // Save state
     saveState();
 }
 
 function saveState() {
     const state = {
-        totals,
-        initialValues,
-        deltas,
-        changes,
-        difference,
-        deltaReferenceValues,
+        ...dataState,
         expiryDate: document.getElementById('expiryDate').value,
         lastChangeCalculation: lastChangeCalculation
     };
@@ -407,23 +480,24 @@ function saveState() {
 function loadState() {
     const savedState = JSON.parse(localStorage.getItem('optionChainState')) || {};
 
-    totals = savedState.totals || { ...initialValues };
-    initialValues = savedState.initialValues || { ...initialValues };
-    deltas = savedState.deltas || { ...deltas };
-    changes = savedState.changes || { ...changes };
-    difference = savedState.difference || {...difference};
-    deltaReferenceValues = savedState.deltaReferenceValues || {...deltaReferenceValues};
+    // Load all data state properties
+    if (savedState.totals) dataState.totals = savedState.totals;
+    if (savedState.initialValues) dataState.initialValues = savedState.initialValues;
+    if (savedState.deltas) dataState.deltas = savedState.deltas;
+    if (savedState.changes) dataState.changes = savedState.changes;
+    if (savedState.difference) dataState.difference = savedState.difference;
+    if (savedState.deltaReferenceValues) dataState.deltaReferenceValues = savedState.deltaReferenceValues;
 
+    // Load last change calculation time
     lastChangeCalculation = savedState.lastChangeCalculation || 0;
     
-    if (savedState.lastChangeCalculation) {
-        lastChangeCalculation = savedState.lastChangeCalculation;
+    // Load expiry date
+    if (savedState.expiryDate) {
+        document.getElementById('expiryDate').value = savedState.expiryDate;
     }
-
-    document.getElementById('expiryDate').value = savedState.expiryDate;
 }
 
 window.addEventListener('beforeunload', () => {
     if (worker) worker.postMessage('stop');
     saveState();
-}); 
+});
