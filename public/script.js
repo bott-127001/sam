@@ -294,6 +294,7 @@ function calculateChange() {
     dataState.deltaReferenceValues = {
          ...dataState.deltas,
          timestamp: Date.now()
+    }
     
     // Update last calculation time
     lastChangeCalculation = now;
