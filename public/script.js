@@ -32,7 +32,9 @@ const resetBtn = document.getElementById('resetBtn');
 let worker;
 let isLiveRefreshActive = localStorage.getItem('liveRefreshActive') === 'true';
 const CHANGE_INTERVAL = 900000; // 15 minutes in milliseconds
+const IV_CHANGE_INTERVAL = 300000; // 5 minutes in milliseconds
 let lastChangeCalculation = localStorage.getItem('lastChangeCalculation') || 0;
+let lastIVChangeCalculation = localStorage.getItem('lastIVChangeCalculation') || 0;
 
 // Initialize data structures with default values
 const defaultValues = {
@@ -52,6 +54,10 @@ let dataState = {
     changes: {
         CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
         CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+    },
+    ivChanges: {
+        CallIV: 0,
+        PutIV: 0
     },
     difference: { ...defaultValues },
     deltaReferenceValues: {
@@ -285,9 +291,7 @@ function calculateChange() {
             PutVolume: dataState.deltas.PutVolume - dataState.deltaReferenceValues.PutVolume,
             PutOI: dataState.deltas.PutOI - dataState.deltaReferenceValues.PutOI,
             CallDelta: dataState.deltas.CallDelta - dataState.deltaReferenceValues.CallDelta,
-            PutDelta: dataState.deltas.PutDelta - dataState.deltaReferenceValues.PutDelta,
-            CallIV: dataState.deltas.CallIV - dataState.deltaReferenceValues.CallIV,
-            PutIV: dataState.deltas.PutIV - dataState.deltaReferenceValues.PutIV
+            PutDelta: dataState.deltas.PutDelta - dataState.deltaReferenceValues.PutDelta
         };
     }
 
@@ -300,6 +304,33 @@ function calculateChange() {
     lastChangeCalculation = now;
     localStorage.setItem('lastChangeCalculation', lastChangeCalculation);
     console.log("zhala be!!");
+    saveState();
+}
+
+
+
+function calculateIVChange() {
+    const now = Date.now();
+
+    // Only proceed if 5 minutes have passed since last IV calculation
+    if (now - lastIVChangeCalculation < IV_CHANGE_INTERVAL) {
+        return;
+    }
+
+    // For first run or after reset
+    if (dataState.initialValues.CallIV === 0 && dataState.initialValues.PutIV === 0) {
+        dataState.ivChanges.CallIV = 0;
+        dataState.ivChanges.PutIV = 0;
+    } else {
+        // Calculate IV changes as difference between totals and initialValues
+        dataState.ivChanges.CallIV = dataState.totals.CallIV - dataState.initialValues.CallIV;
+        dataState.ivChanges.PutIV = dataState.totals.PutIV - dataState.initialValues.PutIV;
+    }
+
+    // Update last IV calculation time
+    lastIVChangeCalculation = now;
+    localStorage.setItem('lastIVChangeCalculation', lastIVChangeCalculation);
+
     saveState();
 }
 
@@ -393,10 +424,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         CallOI: dataState.totals.CallOI - dataState.initialValues.CallOI, 
         CallAskQty: dataState.totals.CallAskQty - dataState.initialValues.CallAskQty,
         CallBidQty: dataState.totals.CallBidQty - dataState.initialValues.CallBidQty,
-        CallIV: dataState.totals.CallIV - dataState.initialValues.CallIV,
         CallDelta: dataState.totals.CallDelta - dataState.initialValues.CallDelta,
         PutVolume: dataState.totals.PutVolume - dataState.initialValues.PutVolume,
-        PutOI: dataState.totals.PutOI - dataState.initialValues.PutOI,
         PutAskQty: dataState.totals.PutAskQty - dataState.initialValues.PutAskQty,
         PutBidQty: dataState.totals.PutBidQty - dataState.initialValues.PutBidQty,
         PutIV: dataState.totals.PutIV - dataState.initialValues.PutIV,
@@ -405,18 +434,19 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
 
     // Calculate deltas (percentage changes)
     dataState.deltas = {
-        CallVolume: (dataState.difference.CallVolume) / dataState.totals.CallVolume * 100,
-        CallOI: (dataState.difference.CallOI) / dataState.totals.CallOI * 100,
-        CallDelta: (dataState.difference.CallDelta) / dataState.totals.CallDelta * 100,
-        CallIV: (dataState.difference.CallIV) / dataState.totals.CallIV * 100,
-        PutVolume: (dataState.difference.PutVolume) / dataState.totals.PutVolume * 100,
-        PutOI: (dataState.difference.PutOI) / dataState.totals.PutOI * 100,
-        PutDelta: (dataState.difference.PutDelta) / dataState.totals.PutDelta * 100,
-        PutIV: (dataState.difference.PutIV) / dataState.totals.PutIV * 100
+        CallVolume: (dataState.difference.CallVolume) / dataState.initialValues.CallVolume * 100,
+        CallOI: (dataState.difference.CallOI) / dataState.initialValues.CallOI * 100,
+        CallDelta: (dataState.difference.CallDelta) / dataState.initialValues.CallDelta * 100,
+        CallIV: (dataState.difference.CallIV) / dataState.initialValues.CallIV * 100,
+        PutVolume: (dataState.difference.PutVolume) / dataState.initialValues.PutVolume * 100,
+        PutOI: (dataState.difference.PutOI) / dataState.initialValues.PutOI * 100,
+        PutDelta: (dataState.difference.PutDelta) / dataState.initialValues.PutDelta * 100,
+        PutIV: (dataState.difference.PutIV) / dataState.initialValues.PutIV * 100
     };
 
     // Calculate changes
     calculateChange();
+    calculateIVChange();
 
     // Create summary rows
     const summaryFragment = document.createDocumentFragment();
@@ -507,7 +537,8 @@ function saveState() {
     const state = {
         ...dataState,
         expiryDate: document.getElementById('expiryDate').value,
-        lastChangeCalculation: lastChangeCalculation
+        lastChangeCalculation: lastChangeCalculation,
+        lastIVChangeCalculation: lastIVChangeCalculation
     };
 
     localStorage.setItem('optionChainState', JSON.stringify(state));
@@ -521,11 +552,13 @@ function loadState() {
     if (savedState.initialValues) dataState.initialValues = savedState.initialValues;
     if (savedState.deltas) dataState.deltas = savedState.deltas;
     if (savedState.changes) dataState.changes = savedState.changes;
+    if (savedState.ivChanges) dataState.ivChanges = savedState.ivChanges;
     if (savedState.difference) dataState.difference = savedState.difference;
     if (savedState.deltaReferenceValues) dataState.deltaReferenceValues = savedState.deltaReferenceValues;
 
     // Load last change calculation time
     lastChangeCalculation = savedState.lastChangeCalculation || 0;
+    lastIVChangeCalculation = savedState.lastIVChangeCalculation || 0;
     
     // Load expiry date
     if (savedState.expiryDate) {
