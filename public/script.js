@@ -49,20 +49,27 @@ let dataState = {
     totals: { ...defaultValues },
     deltas: {
         CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
-        CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+        CallDelta: 0, PutDelta: 0
     },
     changes: {
         CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
-        CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+        CallDelta: 0, PutDelta: 0
     },
     ivChanges: {
         CallIV: 0,
         PutIV: 0
     },
-    difference: { ...defaultValues },
+    deltaReferenceIVValues: {
+        CallIV: 0, PutIV: 0, timestamp: 0
+    },
+    difference: {
+        CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallDelta: 0,
+        PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutDelta: 0,
+        price: 0
+    },
     deltaReferenceValues: {
         CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
-        CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0, timestamp: 0
+        CallDelta: 0, PutDelta: 0, timestamp: 0
     }
 };
 
@@ -232,19 +239,31 @@ function resetAll() {
         totals: { ...defaultValues },
         deltas: {
             CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
-            CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+            CallDelta: 0, PutDelta: 0
         },
         changes: {
             CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
-            CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0
+            CallDelta: 0, PutDelta: 0
         },
-        difference: { ...defaultValues },
+        ivChanges: {
+            CallIV: 0,
+            PutIV: 0
+        },
+        deltaReferenceIVValues: {
+            CallIV: 0, PutIV: 0, timestamp: 0
+        },
+        difference: {
+            CallVolume: 0, CallOI: 0, CallAskQty: 0, CallBidQty: 0, CallDelta: 0,
+            PutVolume: 0, PutOI: 0, PutAskQty: 0, PutBidQty: 0, PutDelta: 0,
+            price: 0
+        },
         deltaReferenceValues: {
             CallVolume: 0, CallOI: 0, PutVolume: 0, PutOI: 0, 
-            CallDelta: 0, PutDelta: 0, CallIV: 0, PutIV: 0, timestamp: 0
+            CallDelta: 0, PutDelta: 0, timestamp: 0
         }
     };
     lastChangeCalculation = 0;
+    lastIVChangeCalculation = 0;
 
     // Clear HTML elements
     optionChainTableBody.innerHTML = '';
@@ -296,7 +315,7 @@ function calculateChange() {
     }
 
     dataState.deltaReferenceValues = {
-         ...dataState.deltas,
+         ...dataState.changes,
          timestamp: Date.now()
     }
     
@@ -318,15 +337,21 @@ function calculateIVChange() {
     }
 
     // For first run or after reset
-    if (dataState.initialValues.CallIV === 0 && dataState.initialValues.PutIV === 0) {
-        dataState.ivChanges.CallIV = 0;
-        dataState.ivChanges.PutIV = 0;
+    if (dataState.deltaReferenceIVValues.timestamp === 0) {
+        dataState.ivChanges.CallIV = dataState.totals.CallIV;
+        dataState.ivChanges.PutIV = dataState.totals.PutIV;
+        timestamp : now;
     } else {
         // Calculate IV changes as difference between totals and initialValues
         dataState.ivChanges.CallIV = dataState.totals.CallIV - dataState.initialValues.CallIV;
         dataState.ivChanges.PutIV = dataState.totals.PutIV - dataState.initialValues.PutIV;
     }
 
+    dataState.deltaReferenceIVValues = {
+        dataState.ivChanges.CallIV = dataState.ivChanges.CallIV,
+        dataState.ivChanges.PutIV = dataState.ivChanges.PutIV,
+         timestamp: Date.now()
+    }
     // Update last IV calculation time
     lastIVChangeCalculation = now;
     localStorage.setItem('lastIVChangeCalculation', lastIVChangeCalculation);
@@ -428,8 +453,8 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         PutVolume: dataState.totals.PutVolume - dataState.initialValues.PutVolume,
         PutAskQty: dataState.totals.PutAskQty - dataState.initialValues.PutAskQty,
         PutBidQty: dataState.totals.PutBidQty - dataState.initialValues.PutBidQty,
-        PutIV: dataState.totals.PutIV - dataState.initialValues.PutIV,
-        PutDelta: dataState.totals.PutDelta - dataState.initialValues.PutDelta  
+        PutDelta: dataState.totals.PutDelta - dataState.initialValues.PutDelta,
+        PutOI: dataState.totals.PutOI - dataState.initialValues.PutOI
     };
 
     // Calculate deltas (percentage changes)
@@ -437,11 +462,9 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         CallVolume: (dataState.difference.CallVolume) / dataState.initialValues.CallVolume * 100,
         CallOI: (dataState.difference.CallOI) / dataState.initialValues.CallOI * 100,
         CallDelta: (dataState.difference.CallDelta) / dataState.initialValues.CallDelta * 100,
-        CallIV: (dataState.difference.CallIV) / dataState.initialValues.CallIV * 100,
         PutVolume: (dataState.difference.PutVolume) / dataState.initialValues.PutVolume * 100,
         PutOI: (dataState.difference.PutOI) / dataState.initialValues.PutOI * 100,
-        PutDelta: (dataState.difference.PutDelta) / dataState.initialValues.PutDelta * 100,
-        PutIV: (dataState.difference.PutIV) / dataState.initialValues.PutIV * 100
+        PutDelta: (dataState.difference.PutDelta) / dataState.initialValues.PutDelta * 100
     };
 
     // Calculate changes
@@ -479,25 +502,25 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     // Difference row
     const diffRow = document.createElement('tr');
     diffRow.innerHTML = `
-        <td>${dataState.difference?.CallVolume ?? 0}</td>
-        <td>${dataState.difference?.CallOI ?? 0}</td>
-        <td>${(dataState.difference?.CallIV ?? 0).toFixed(4)}</td>
-        <td>${(dataState.difference?.CallDelta ?? 0).toFixed(4)}</td>
+        <td>${dataState.difference.CallVolume || 0}</td>
+        <td>${dataState.difference.CallOI || 0}</td>
+        <td>${(dataState.ivChanges.CallIV || 0).toFixed(4)}</td>
+        <td>${(dataState.difference.CallDelta || 0).toFixed(4)}</td>
         <td></td>
-        <td>${dataState.difference?.CallBidQty ?? 0}</td>
-        <td></td>
-        <td></td>
-        <td>${dataState.difference?.CallAskQty ?? 0}</td>
-        <td></td>
-        <td>${dataState.difference?.PutAskQty ?? 0}</td>
+        <td>${dataState.difference.CallBidQty || 0}</td>
         <td></td>
         <td></td>
-        <td>${dataState.difference?.PutBidQty ?? 0}</td>
+        <td>${dataState.difference.CallAskQty || 0}</td>
         <td></td>
-        <td>${(dataState.difference?.PutDelta ?? 0).toFixed(4)}</td>
-        <td>${(dataState.difference?.PutIV ?? 0).toFixed(4)}</td>
-        <td>${dataState.difference?.PutOI ?? 0}</td>
-        <td>${dataState.difference?.PutVolume ?? 0}</td>
+        <td>${dataState.difference.PutAskQty || 0}</td>
+        <td></td>
+        <td></td>
+        <td>${dataState.difference.PutBidQty || 0}</td>
+        <td></td>
+        <td>${(dataState.difference.PutDelta || 0).toFixed(4)}</td>
+        <td>${(dataState.ivChanges.PutIV || 0).toFixed(4)}</td>
+        <td>${dataState.difference.PutOI || 0}</td>
+        <td>${dataState.difference.PutVolume || 0}</td>
     `;
     summaryFragment.appendChild(diffRow);
 
@@ -506,7 +529,7 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
     deltaRow.innerHTML = `
         <td>${dataState.deltas.CallVolume.toFixed(3)}, ${dataState.changes.CallVolume?.toFixed(3) || '0.000'}</td>
         <td>${dataState.deltas.CallOI.toFixed(3)}, ${dataState.changes.CallOI?.toFixed(3) || '0.000'}</td>
-        <td>${dataState.deltas.CallIV.toFixed(3)}, ${dataState.changes.CallIV?.toFixed(3) || '0.000'}</td>
+        <td></td>
         <td>${dataState.deltas.CallDelta.toFixed(3)}, ${dataState.changes.CallDelta?.toFixed(3) || '0.000'}</td>
         <td></td>
         <td></td>
@@ -520,7 +543,7 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
         <td></td>
         <td></td>
         <td>${dataState.deltas.PutDelta.toFixed(3)}, ${dataState.changes.PutDelta?.toFixed(3) || '0.000'}</td>
-        <td>${dataState.deltas.PutIV.toFixed(3)}, ${dataState.changes.PutIV?.toFixed(3) || '0.000'}</td>
+        <td></td>
         <td>${dataState.deltas.PutOI.toFixed(3)}, ${dataState.changes.PutOI?.toFixed(3) || '0.000'}</td>
         <td>${dataState.deltas.PutVolume.toFixed(3)}, ${dataState.changes.PutVolume?.toFixed(3) || '0.000'}</td>
     `;
