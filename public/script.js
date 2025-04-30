@@ -348,9 +348,9 @@ function calculateIVChange() {
     }
 
     dataState.deltaReferenceIVValues = {
-        dataState.ivChanges.CallIV = dataState.ivChanges.CallIV,
-        dataState.ivChanges.PutIV = dataState.ivChanges.PutIV,
-         timestamp: Date.now()
+        CallIV : dataState.ivChanges.CallIV,
+        PutIV : dataState.ivChanges.PutIV,
+        timestamp: Date.now()
     }
     // Update last IV calculation time
     lastIVChangeCalculation = now;
