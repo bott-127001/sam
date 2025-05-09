@@ -295,14 +295,6 @@ function calculateChange() {
     if (now - lastChangeCalculation < CHANGE_INTERVAL) {
         return;
     }
-
-    // For first run or after reset
-    if (dataState.deltaReferenceValues.timestamp === 0) {
-        dataState.deltaReferenceValues = {
-            ...dataState.deltas,
-            timestamp: now
-        };
-    } else {
         // Calculate changes since last reference point
         dataState.changes = {
             CallVolume: dataState.deltas.CallVolume - dataState.deltaReferenceValues.CallVolume,
@@ -312,8 +304,6 @@ function calculateChange() {
             CallDelta: dataState.deltas.CallDelta - dataState.deltaReferenceValues.CallDelta,
             PutDelta: dataState.deltas.PutDelta - dataState.deltaReferenceValues.PutDelta
         };
-    }
-
     dataState.deltaReferenceValues = {
          ...dataState.changes,
          timestamp: Date.now()
@@ -335,24 +325,15 @@ function calculateIVChange() {
     if (now - lastIVChangeCalculation < IV_CHANGE_INTERVAL) {
         return;
     }
-
-    // For first run or after reset
-    if (dataState.deltaReferenceIVValues.timestamp === 0) {
-        dataState.ivChanges.CallIV = dataState.totals.CallIV;
-        dataState.ivChanges.PutIV = dataState.totals.PutIV;
-        timestamp : now;
-    } else {
         // Calculate IV changes as difference between totals and initialValues
-        dataState.ivChanges.CallIV = dataState.totals.CallIV - dataState.initialValues.CallIV;
-        dataState.ivChanges.PutIV = dataState.totals.PutIV - dataState.initialValues.PutIV;
-    }
-
+    dataState.ivChanges.CallIV = dataState.totals.CallIV - dataState.initialValues.CallIV;
+    dataState.ivChanges.PutIV = dataState.totals.PutIV - dataState.initialValues.PutIV;
+    
     dataState.deltaReferenceIVValues = {
         CallIV : dataState.ivChanges.CallIV,
         PutIV : dataState.ivChanges.PutIV,
         timestamp: Date.now()
     }
-    // Update last IV calculation time
     lastIVChangeCalculation = now;
     localStorage.setItem('lastIVChangeCalculation', lastIVChangeCalculation);
 
@@ -459,12 +440,12 @@ function updateOptionChainData(optionChain, underlyingSpotPrice) {
 
     // Calculate deltas (percentage changes)
     dataState.deltas = {
-        CallVolume: (dataState.difference.CallVolume) / dataState.initialValues.CallVolume * 100,
-        CallOI: (dataState.difference.CallOI) / dataState.initialValues.CallOI * 100,
-        CallDelta: (dataState.difference.CallDelta) / dataState.initialValues.CallDelta * 100,
-        PutVolume: (dataState.difference.PutVolume) / dataState.initialValues.PutVolume * 100,
-        PutOI: (dataState.difference.PutOI) / dataState.initialValues.PutOI * 100,
-        PutDelta: (dataState.difference.PutDelta) / dataState.initialValues.PutDelta * 100
+        CallVolume: dataState.difference.CallVolume / dataState.totals.CallVolume * 100,
+        CallOI: dataState.difference.CallOI / dataState.totals.CallOI * 100,
+        CallDelta: dataState.difference.CallDelta / dataState.totals.CallDelta * 100,
+        PutVolume: dataState.difference.PutVolume / dataState.totals.PutVolume * 100,
+        PutOI: dataState.difference.PutOI / dataState.totals.PutOI * 100,
+        PutDelta: dataState.difference.PutDelta / dataState.totals.PutDelta * 100
     };
 
     // Calculate changes
